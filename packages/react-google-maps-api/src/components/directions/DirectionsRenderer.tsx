@@ -1,8 +1,11 @@
 import * as React from 'react'
 
-import { unregisterEvents, applyUpdatersToPropsAndRegisterEvents } from '../../utils/helper'
-
 import MapContext from '../../map-context'
+import {
+  unregisterEvents,
+  applyUpdatersToPropsAndRegisterEvents,
+} from '../../utils/helper'
+import { usePrevious } from '../../utils/use-previous'
 
 const eventMap = {
   onDirectionsChanged: 'directions_changed',
@@ -27,13 +30,12 @@ const updaterMap = {
   panel(instance: google.maps.DirectionsRenderer, panel: Element): void {
     instance.setPanel(panel)
   },
-  routeIndex(instance: google.maps.DirectionsRenderer, routeIndex: number): void {
+  routeIndex(
+    instance: google.maps.DirectionsRenderer,
+    routeIndex: number
+  ): void {
     instance.setRouteIndex(routeIndex)
   },
-}
-
-interface DirectionsRendererState {
-  directionsRenderer: google.maps.DirectionsRenderer | null
 }
 
 export interface DirectionsRendererProps {
@@ -52,77 +54,67 @@ export interface DirectionsRendererProps {
   onUnmount?: (directionsRenderer: google.maps.DirectionsRenderer) => void
 }
 
-export class DirectionsRenderer extends React.PureComponent<
-  DirectionsRendererProps,
-  DirectionsRendererState
-> {
-  static contextType = MapContext
+function DirectionsRenderer(props: DirectionsRendererProps): JSX.Element {
+  const { options, onLoad, onUnmount } = props
+  const map = React.useContext(MapContext)
+  const prevProps: DirectionsRendererProps = usePrevious<
+    DirectionsRendererProps
+  >(props)
 
-  registeredEvents: google.maps.MapsEventListener[] = []
+  const [
+    instance,
+    setInstance,
+  ] = React.useState<google.maps.DirectionsRenderer | null>(null)
 
-  state: DirectionsRendererState = {
-    directionsRenderer: null,
-  }
+  React.useEffect(
+    function effect() {
+      if (map !== null) {
+        if (instance === null) {
+          setInstance(new google.maps.DirectionsRenderer(options))
+        }
 
-  setDirectionsRendererCallback = (): void => {
-    if (this.state.directionsRenderer !== null) {
-      this.state.directionsRenderer.setMap(this.context)
+        if (instance !== null) {
+          instance.setMap(map)
 
-      if (this.props.onLoad) {
-        this.props.onLoad(this.state.directionsRenderer)
-      }
-    }
-  }
-
-  componentDidMount(): void {
-    const directionsRenderer = new google.maps.DirectionsRenderer(this.props.options)
-
-    this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-      updaterMap,
-      eventMap,
-      prevProps: {},
-      nextProps: this.props,
-      instance: directionsRenderer,
-    })
-
-    this.setState(function setDirectionsRenderer() {
-      return {
-        directionsRenderer,
-      }
-    }, this.setDirectionsRendererCallback)
-  }
-
-  componentDidUpdate(prevProps: DirectionsRendererProps): void {
-    if (this.state.directionsRenderer !== null) {
-      unregisterEvents(this.registeredEvents)
-
-      this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-        updaterMap,
-        eventMap,
-        prevProps,
-        nextProps: this.props,
-        instance: this.state.directionsRenderer,
-      })
-    }
-  }
-
-  componentWillUnmount(): void {
-    if (this.state.directionsRenderer !== null) {
-      if (this.props.onUnmount) {
-        this.props.onUnmount(this.state.directionsRenderer)
+          if (onLoad) {
+            onLoad(instance)
+          }
+        }
       }
 
-      unregisterEvents(this.registeredEvents)
+      return function cleanup() {
+        if (instance !== null) {
+          if (onUnmount) {
+            onUnmount(instance)
+          }
 
-      if (this.state.directionsRenderer) {
-        this.state.directionsRenderer.setMap(null)
+          instance.setMap(null)
+        }
       }
-    }
-  }
+    },
+    [instance, map, options, onLoad, onUnmount]
+  )
 
-  render(): JSX.Element {
-    return <></>
-  }
+  React.useEffect(
+    function effect(): () => void {
+      const registeredEvents: google.maps.MapsEventListener[] = applyUpdatersToPropsAndRegisterEvents(
+        {
+          updaterMap,
+          eventMap,
+          prevProps,
+          nextProps: props,
+          instance,
+        }
+      )
+
+      return function cleanup(): void {
+        unregisterEvents(registeredEvents)
+      }
+    },
+    [props, instance, prevProps]
+  )
+
+  return <></>
 }
 
-export default DirectionsRenderer
+export default React.memo(DirectionsRenderer)

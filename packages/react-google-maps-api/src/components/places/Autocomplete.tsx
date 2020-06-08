@@ -1,10 +1,12 @@
 import * as React from 'react'
-
-import { unregisterEvents, applyUpdatersToPropsAndRegisterEvents } from '../../utils/helper'
+import invariant from 'invariant'
 
 import MapContext from '../../map-context'
-
-import invariant from 'invariant'
+import {
+  unregisterEvents,
+  applyUpdatersToPropsAndRegisterEvents,
+} from '../../utils/helper'
+import { usePrevious } from '../../utils/use-previous'
 
 const eventMap = {
   onPlaceChanged: 'place_changed',
@@ -37,10 +39,6 @@ const updaterMap = {
   },
 }
 
-interface AutocompleteState {
-  autocomplete: google.maps.places.Autocomplete | null
-}
-
 export interface AutocompleteProps {
   // required
   children: React.ReactChild
@@ -61,74 +59,73 @@ export interface AutocompleteProps {
   onUnmount?: (autocomplete: google.maps.places.Autocomplete) => void
 }
 
-export class Autocomplete extends React.PureComponent<AutocompleteProps, AutocompleteState> {
-  static contextType = MapContext
+function Autocomplete(props: AutocompleteProps): JSX.Element {
+  const { children, options, onLoad, onUnmount } = props
+  const map = React.useContext(MapContext)
+  const prevProps: AutocompleteProps = usePrevious<AutocompleteProps>(props)
+  const containerElementRef = React.useRef<HTMLDivElement | null>(null)
 
-  registeredEvents: google.maps.MapsEventListener[] = []
-  containerElement: React.RefObject<HTMLDivElement> = React.createRef()
+  const [
+    instance,
+    setInstance,
+  ] = React.useState<google.maps.places.Autocomplete | null>(null)
 
-  state: AutocompleteState = {
-    autocomplete: null,
-  }
+  React.useEffect(
+    function effect() {
+      invariant(
+        !!google.maps.places,
+        'You need to provide libraries={["places"]} prop to <LoadScript /> component %s',
+        google.maps.places
+      )
 
-  setAutocompleteCallback = (): void => {
-    if (this.state.autocomplete !== null && this.props.onLoad) {
-      this.props.onLoad(this.state.autocomplete)
-    }
-  }
+      if (containerElementRef.current !== null) {
+        const input = containerElementRef.current.querySelector('input')
 
-  componentDidMount(): void {
-    invariant(
-      !!google.maps.places,
-      'You need to provide libraries={["places"]} prop to <LoadScript /> component %s',
-      google.maps.places
-    )
+        if (input) {
+          const autocomplete = new google.maps.places.Autocomplete(
+            input,
+            options
+          )
 
-    // TODO: why current could be equal null?
-    // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-    // @ts-ignore
-    const input = this.containerElement.current.querySelector('input')
+          setInstance(autocomplete)
 
-    if (input) {
-      const autocomplete = new google.maps.places.Autocomplete(input, this.props.options)
-
-      this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-        updaterMap,
-        eventMap,
-        prevProps: {},
-        nextProps: this.props,
-        instance: autocomplete,
-      })
-
-      this.setState(function setAutocomplete() {
-        return {
-          autocomplete,
+          if (onLoad) {
+            onLoad(autocomplete)
+          }
         }
-      }, this.setAutocompleteCallback)
-    }
-  }
+      }
 
-  componentDidUpdate(prevProps: AutocompleteProps): void {
-    unregisterEvents(this.registeredEvents)
+      return function cleanup() {
+        if (instance !== null) {
+          if (onUnmount) {
+            onUnmount(instance)
+          }
+        }
+      }
+    },
+    [instance, map, options, onLoad, onUnmount]
+  )
 
-    this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-      updaterMap,
-      eventMap,
-      prevProps,
-      nextProps: this.props,
-      instance: this.state.autocomplete,
-    })
-  }
+  React.useEffect(
+    function effect(): () => void {
+      const registeredEvents: google.maps.MapsEventListener[] = applyUpdatersToPropsAndRegisterEvents(
+        {
+          updaterMap,
+          eventMap,
+          prevProps,
+          nextProps: props,
+          instance,
+        }
+      )
 
-  componentWillUnmount(): void {
-    if (this.state.autocomplete !== null) {
-      unregisterEvents(this.registeredEvents)
-    }
-  }
+      return function cleanup(): void {
+        unregisterEvents(registeredEvents)
+      }
+    },
+    [props, instance, prevProps]
+  )
 
-  render(): React.ReactNode {
-    return <div ref={this.containerElement}>{React.Children.only(this.props.children)}</div>
-  }
+  return <div ref={containerElementRef}>{React.Children.only(children)}</div>
 }
 
-export default Autocomplete
+export default React.memo(Autocomplete)

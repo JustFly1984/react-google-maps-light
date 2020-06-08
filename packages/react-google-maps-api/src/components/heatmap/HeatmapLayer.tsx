@@ -1,9 +1,12 @@
 import * as React from 'react'
 import invariant from 'invariant'
 
-import { unregisterEvents, applyUpdatersToPropsAndRegisterEvents } from '../../utils/helper'
-
 import MapContext from '../../map-context'
+import {
+  unregisterEvents,
+  applyUpdatersToPropsAndRegisterEvents,
+} from '../../utils/helper'
+import { usePrevious } from '../../utils/use-previous'
 
 const eventMap = {}
 
@@ -11,13 +14,18 @@ const updaterMap = {
   data(
     instance: google.maps.visualization.HeatmapLayer,
     data:
-      | google.maps.MVCArray<google.maps.LatLng | google.maps.visualization.WeightedLocation>
+      | google.maps.MVCArray<
+          google.maps.LatLng | google.maps.visualization.WeightedLocation
+        >
       | google.maps.LatLng[]
       | google.maps.visualization.WeightedLocation[]
   ): void {
     instance.setData(data)
   },
-  map(instance: google.maps.visualization.HeatmapLayer, map: google.maps.Map): void {
+  map(
+    instance: google.maps.visualization.HeatmapLayer,
+    map: google.maps.Map
+  ): void {
     instance.setMap(map)
   },
   options(
@@ -28,15 +36,13 @@ const updaterMap = {
   },
 }
 
-interface HeatmapLayerState {
-  heatmapLayer: google.maps.visualization.HeatmapLayer | null
-}
-
 export interface HeatmapLayerProps {
   // required
   /** The data points to display. Required. */
   data:
-    | google.maps.MVCArray<google.maps.LatLng | google.maps.visualization.WeightedLocation>
+    | google.maps.MVCArray<
+        google.maps.LatLng | google.maps.visualization.WeightedLocation
+      >
     | google.maps.LatLng[]
     | google.maps.visualization.WeightedLocation[]
   options?: google.maps.visualization.HeatmapLayerOptions
@@ -46,78 +52,78 @@ export interface HeatmapLayerProps {
   onUnmount?: (heatmapLayer: google.maps.visualization.HeatmapLayer) => void
 }
 
-export class HeatmapLayer extends React.PureComponent<HeatmapLayerProps, HeatmapLayerState> {
-  static contextType = MapContext
+function HeatmapLayer(props: HeatmapLayerProps): JSX.Element {
+  const { data, options, onLoad, onUnmount } = props
+  const map = React.useContext(MapContext)
+  const prevProps: HeatmapLayerProps = usePrevious<HeatmapLayerProps>(props)
+  const [
+    instance,
+    setInstance,
+  ] = React.useState<google.maps.visualization.HeatmapLayer | null>(null)
 
-  registeredEvents: google.maps.MapsEventListener[] = []
+  React.useEffect(
+    function effect() {
+      invariant(
+        !!google.maps.visualization,
+        'Did you include prop libraries={["visualization"]} to <LoadScript />? %s',
+        google.maps.visualization
+      )
 
-  state: HeatmapLayerState = {
-    heatmapLayer: null,
-  }
+      invariant(!!data, 'data property is required in HeatmapLayer %s', data)
 
-  setHeatmapLayerCallback = (): void => {
-    if (this.state.heatmapLayer !== null && this.props.onLoad) {
-      this.props.onLoad(this.state.heatmapLayer)
-    }
-  }
+      if (map !== null) {
+        if (instance === null) {
+          setInstance(
+            new google.maps.visualization.HeatmapLayer({
+              ...(options || {}),
+              data,
+              map,
+            })
+          )
+        }
 
-  componentDidMount(): void {
-    invariant(
-      !!google.maps.visualization,
-      'Did you include prop libraries={["visualization"]} to <LoadScript />? %s',
-      google.maps.visualization
-    )
+        if (instance !== null) {
+          instance.setMap(map)
 
-    invariant(!!this.props.data, 'data property is required in HeatmapLayer %s', this.props.data)
-
-    const heatmapLayer = new google.maps.visualization.HeatmapLayer({
-      ...(this.props.options || {}),
-      data: this.props.data,
-      map: this.context,
-    })
-
-    this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-      updaterMap,
-      eventMap,
-      prevProps: {},
-      nextProps: this.props,
-      instance: heatmapLayer,
-    })
-
-    this.setState(function setHeatmapLayer() {
-      return {
-        heatmapLayer,
-      }
-    }, this.setHeatmapLayerCallback)
-  }
-
-  componentDidUpdate(prevProps: HeatmapLayerProps): void {
-    unregisterEvents(this.registeredEvents)
-
-    this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-      updaterMap,
-      eventMap,
-      prevProps,
-      nextProps: this.props,
-      instance: this.state.heatmapLayer,
-    })
-  }
-
-  componentWillUnmount(): void {
-    if (this.state.heatmapLayer !== null) {
-      if (this.props.onUnmount) {
-        this.props.onUnmount(this.state.heatmapLayer)
+          if (onLoad) {
+            onLoad(instance)
+          }
+        }
       }
 
-      unregisterEvents(this.registeredEvents)
+      return function cleanup() {
+        if (instance !== null) {
+          if (onUnmount) {
+            onUnmount(instance)
+          }
 
-      this.state.heatmapLayer.setMap(null)
-    }
-  }
+          instance.setMap(null)
+        }
+      }
+    },
+    [instance, data, map, options, onLoad, onUnmount]
+  )
 
-  render(): React.ReactNode {
-    return null
-  }
+  React.useEffect(
+    function effect(): () => void {
+      const registeredEvents: google.maps.MapsEventListener[] = applyUpdatersToPropsAndRegisterEvents(
+        {
+          updaterMap,
+          eventMap,
+          prevProps,
+          nextProps: props,
+          instance,
+        }
+      )
+
+      return function cleanup(): void {
+        unregisterEvents(registeredEvents)
+      }
+    },
+    [props, instance, prevProps]
+  )
+
+  return <></>
 }
 
-export default HeatmapLayer
+export default React.memo(HeatmapLayer)

@@ -1,10 +1,14 @@
 /* global google */
 import * as React from 'react'
 import * as ReactDOM from 'react-dom'
-import { unregisterEvents, applyUpdatersToPropsAndRegisterEvents } from '../../utils/helper'
+import invariant from 'invariant'
 
 import MapContext from '../../map-context'
-import invariant from 'invariant'
+import {
+  unregisterEvents,
+  applyUpdatersToPropsAndRegisterEvents,
+} from '../../utils/helper'
+import { usePrevious } from '../../utils/use-previous'
 
 const eventMap = {
   onCloseClick: 'closeclick',
@@ -15,7 +19,10 @@ const eventMap = {
 }
 
 const updaterMap = {
-  options(instance: google.maps.InfoWindow, options: google.maps.InfoWindowOptions): void {
+  options(
+    instance: google.maps.InfoWindow,
+    options: google.maps.InfoWindowOptions
+  ): void {
     instance.setOptions(options)
   },
   position(
@@ -29,11 +36,8 @@ const updaterMap = {
   },
 }
 
-interface InfoWindowState {
-  infoWindow: google.maps.InfoWindow | null
-}
-
 export interface InfoWindowProps {
+  children: React.ReactNode
   /** Can be any MVCObject that exposes a LatLng position property and optionally a Point anchorPoint property for calculating the pixelOffset. The anchorPoint is the offset from the anchor's position to the tip of the InfoWindow. */
   anchor?: google.maps.MVCObject
   options?: google.maps.InfoWindowOptions
@@ -57,92 +61,91 @@ export interface InfoWindowProps {
   onUnmount?: (infoWindow: google.maps.InfoWindow) => void
 }
 
-export class InfoWindow extends React.PureComponent<InfoWindowProps, InfoWindowState> {
-  static contextType = MapContext
+function InfoWindow(props: InfoWindowProps): JSX.Element {
+  const { children, anchor, options, onLoad, onUnmount } = props
+  const map = React.useContext(MapContext)
+  const prevProps: InfoWindowProps = usePrevious<InfoWindowProps>(props)
+  const [
+    containerElement,
+    setContainerElement,
+  ] = React.useState<HTMLElement | null>(null)
 
-  registeredEvents: google.maps.MapsEventListener[] = []
-  containerElement: HTMLElement | null = null
+  const [instance, setInstance] = React.useState<google.maps.InfoWindow | null>(
+    null
+  )
 
-  state: InfoWindowState = {
-    infoWindow: null,
-  }
+  React.useEffect(
+    function effect() {
+      if (map !== null) {
+        if (instance === null) {
+          setInstance(
+            new google.maps.InfoWindow({
+              ...(options || {}),
+            })
+          )
 
-  open = (infoWindow: google.maps.InfoWindow, anchor?: google.maps.MVCObject): void => {
-    if (anchor) {
-      infoWindow.open(this.context, anchor)
-    } else if (infoWindow.getPosition()) {
-      infoWindow.open(this.context)
-    } else {
-      invariant(
-        false,
-        `You must provide either an anchor (typically render it inside a <Marker>) or a position props for <InfoWindow>.`
+          setContainerElement(document.createElement('div'))
+        }
+
+        if (instance !== null && containerElement !== null) {
+          instance.setContent(containerElement)
+
+          if (anchor) {
+            instance.open(map, anchor)
+          } else if (instance.getPosition()) {
+            instance.open(map)
+          } else {
+            invariant(
+              false,
+              `You must provide either an anchor (typically render it inside a <Marker>) or a position props for <InfoWindow>.`
+            )
+          }
+
+          if (onLoad) {
+            onLoad(instance)
+          }
+        }
+      }
+
+      return function cleanup() {
+        if (instance !== null) {
+          if (onUnmount) {
+            onUnmount(instance)
+          }
+
+          instance.close()
+        }
+      }
+    },
+    [instance, anchor, containerElement, map, options, onLoad, onUnmount]
+  )
+
+  React.useEffect(
+    function effect(): () => void {
+      const registeredEvents: google.maps.MapsEventListener[] = applyUpdatersToPropsAndRegisterEvents(
+        {
+          updaterMap,
+          eventMap,
+          prevProps,
+          nextProps: props,
+          instance,
+        }
       )
-    }
-  }
 
-  setInfoWindowCallback = (): void => {
-    if (this.state.infoWindow !== null && this.containerElement !== null) {
-      this.state.infoWindow.setContent(this.containerElement)
-
-      this.open(this.state.infoWindow, this.props.anchor)
-
-      if (this.props.onLoad) {
-        this.props.onLoad(this.state.infoWindow)
+      return function cleanup(): void {
+        unregisterEvents(registeredEvents)
       }
-    }
-  }
+    },
+    [props, instance, prevProps]
+  )
 
-  componentDidMount(): void {
-    const infoWindow = new google.maps.InfoWindow({
-      ...(this.props.options || {}),
-    })
-
-    this.containerElement = document.createElement('div')
-
-    this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-      updaterMap,
-      eventMap,
-      prevProps: {},
-      nextProps: this.props,
-      instance: infoWindow,
-    })
-
-    this.setState(function setInfoWindow() {
-      return {
-        infoWindow,
-      }
-    }, this.setInfoWindowCallback)
-  }
-
-  componentDidUpdate(prevProps: InfoWindowProps): void {
-    if (this.state.infoWindow !== null) {
-      unregisterEvents(this.registeredEvents)
-
-      this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-        updaterMap,
-        eventMap,
-        prevProps,
-        nextProps: this.props,
-        instance: this.state.infoWindow,
-      })
-    }
-  }
-
-  componentWillUnmount(): void {
-    if (this.state.infoWindow !== null) {
-      unregisterEvents(this.registeredEvents)
-
-      this.state.infoWindow.close()
-    }
-  }
-
-  render(): React.ReactPortal | React.ReactNode {
-    return this.containerElement ? (
-      ReactDOM.createPortal(React.Children.only(this.props.children), this.containerElement)
-    ) : (
-      <></>
-    )
-  }
+  return containerElement ? (
+    <>
+      {ReactDOM.createPortal(React.Children.only(children), containerElement)}
+    </>
+  ) : (
+    <></>
+  )
 }
 
-export default InfoWindow
+export default React.memo(InfoWindow)

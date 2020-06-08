@@ -2,10 +2,6 @@ import * as React from 'react'
 
 import MapContext from '../../map-context'
 
-interface TransitLayerState {
-  transitLayer: google.maps.TransitLayer | null
-}
-
 export interface TransitLayerProps {
   /** This callback is called when the transitLayer instance has loaded. It is called with the transitLayer instance. */
   onLoad?: (transitLayer: google.maps.TransitLayer) => void
@@ -13,55 +9,40 @@ export interface TransitLayerProps {
   onUnmount?: (transitLayer: google.maps.TransitLayer) => void
 }
 
-export class TransitLayer extends React.PureComponent<TransitLayerProps, TransitLayerState> {
-  static contextType = MapContext
+function TransitLayer(props: TransitLayerProps): JSX.Element {
+  const { onLoad, onUnmount } = props
+  const map = React.useContext(MapContext)
 
-  state = {
-    transitLayer: null,
-  }
+  const [
+    instance,
+    setInstance,
+  ] = React.useState<google.maps.TransitLayer | null>(null)
 
-  setTransitLayerCallback = (): void => {
-    if (this.state.transitLayer !== null) {
-      // TODO: how is this possibly null if we're doing a null check
-      // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-      // @ts-ignore
-      this.state.transitLayer.setMap(this.context)
+  React.useEffect(
+    function effect(): () => void {
+      const newInstance: google.maps.TransitLayer = new google.maps.TransitLayer()
+      setInstance(newInstance)
 
-      if (this.props.onLoad) {
-        // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-        // @ts-ignore
-        this.props.onLoad(this.state.transitLayer)
-      }
-    }
-  }
+      newInstance.setMap(map)
 
-  componentDidMount(): void {
-    const transitLayer = new google.maps.TransitLayer()
-
-    this.setState(function setTransitLayer() {
-      return {
-        transitLayer,
-      }
-    }, this.setTransitLayerCallback)
-  }
-
-  componentWillUnmount(): void {
-    if (this.state.transitLayer !== null) {
-      if (this.props.onUnmount) {
-        // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-        // @ts-ignore
-        this.props.onUnmount(this.state.transitLayer)
+      if (onLoad) {
+        onLoad(newInstance)
       }
 
-      // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-      // @ts-ignore
-      this.state.transitLayer.setMap(null)
-    }
-  }
+      return function cleanup(): void {
+        if (instance !== null) {
+          if (onUnmount) {
+            onUnmount(instance)
+          }
 
-  render(): React.ReactNode {
-    return null
-  }
+          instance.setMap(null)
+        }
+      }
+    },
+    [instance, map, onLoad, onUnmount]
+  )
+
+  return <></>
 }
 
-export default TransitLayer
+export default React.memo(TransitLayer)

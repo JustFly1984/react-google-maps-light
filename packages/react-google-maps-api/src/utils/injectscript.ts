@@ -9,17 +9,24 @@ interface InjectScriptArg {
   id: string
 }
 
-export const injectScript = ({ url, id }: InjectScriptArg): Promise<any> => {
+export function injectScript({ url, id }: InjectScriptArg): Promise<unknown> {
   if (!isBrowser) {
     return Promise.reject(new Error('document is undefined'))
   }
 
-  return new Promise(function injectScriptCallback(resolve, reject) {
-    const existingScript = document.getElementById(id) as HTMLScriptElement | undefined
+  return new Promise(function injectScriptCallback(
+    resolve: (value?: unknown) => void,
+    reject: (reason?: unknown) => void
+  ): void {
+    const existingScript = document.getElementById(id) as
+      | HTMLScriptElement
+      | undefined
     const windowWithGoogleMap: WindowWithGoogleMap = window
+
     if (existingScript) {
       // Same script id/url: keep same script
       const dataStateAttribute = existingScript.getAttribute('data-state')
+
       if (existingScript.src === url && dataStateAttribute !== 'error') {
         if (dataStateAttribute === 'ready') {
           return resolve(id)
@@ -34,14 +41,12 @@ export const injectScript = ({ url, id }: InjectScriptArg): Promise<any> => {
             resolve(id)
           }
 
-          existingScript.onerror = function(err): void {
+          existingScript.onerror = function onerror(err): void {
             if (originalErrorCallback) {
               originalErrorCallback(err)
             }
             reject(err)
           }
-
-          return
         }
       }
       // Same script id, but either

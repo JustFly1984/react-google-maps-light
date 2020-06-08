@@ -1,10 +1,7 @@
 import * as React from 'react'
 
-interface ScriptLoadedState {
-  scriptLoaded: boolean
-}
-
 interface ScriptLoadedProps {
+  // eslint-disable-next-line @typescript-eslint/ban-types
   children: React.ReactChild | React.ReactChildren | Function
 }
 
@@ -16,46 +13,36 @@ function SpanIntro(): JSX.Element {
   )
 }
 
-class ScriptLoaded extends React.Component<ScriptLoadedProps, ScriptLoadedState> {
-  interval: number | undefined
+const SpanIntroMemo = React.memo(SpanIntro)
 
-  constructor(props: ScriptLoadedProps) {
-    super(props)
+function ScriptLoaded(props: ScriptLoadedProps): JSX.Element {
+  const { children } = props
+  const [scriptLoaded, setScriptLoaded] = React.useState(!!window.google)
+  const [intervalState, setIntervalState] = React.useState(0)
 
-    this.state = {
-      scriptLoaded: !!window.google,
-    }
-
-    this.interval = window.setInterval(this.checkIfScriptLoaded, 200)
-  }
-
-  setScriptLoadedCallback = (): void => {
-    if (this.state.scriptLoaded) {
-      window.clearInterval(this.interval)
-    }
-  }
-
-  checkIfScriptLoaded = (): void => {
+  const checkIfScriptLoaded = React.useCallback(function callback(): void {
     if (window.google) {
-      this.setState(function serScriptLoaded() {
-        return {
-          scriptLoaded: true,
-        }
-      }, this.setScriptLoadedCallback)
+      setScriptLoaded(true)
+      window.clearInterval(intervalState)
     }
+  }, [])
+
+  React.useEffect(
+    function effect() {
+      setIntervalState(window.setInterval(checkIfScriptLoaded, 200))
+
+      return function callback() {
+        window.clearInterval(intervalState)
+      }
+    },
+    [checkIfScriptLoaded, intervalState]
+  )
+
+  if (!scriptLoaded) {
+    return <SpanIntroMemo />
   }
 
-  componentWillUnmount(): void {
-    window.clearInterval(this.interval)
-  }
-
-  render(): JSX.Element {
-    if (!this.state.scriptLoaded) {
-      return <SpanIntro />
-    }
-
-    return this.props.children instanceof Function ? this.props.children() : this.props.children
-  }
+  return children instanceof Function ? children() : children
 }
 
-export default ScriptLoaded
+export default React.memo(ScriptLoaded)

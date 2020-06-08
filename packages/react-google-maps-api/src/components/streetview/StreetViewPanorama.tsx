@@ -1,8 +1,11 @@
 import * as React from 'react'
 
-import { unregisterEvents, applyUpdatersToPropsAndRegisterEvents } from '../../utils/helper'
-
 import MapContext from '../../map-context'
+import {
+  unregisterEvents,
+  applyUpdatersToPropsAndRegisterEvents,
+} from '../../utils/helper'
+import { usePrevious } from '../../utils/use-previous'
 
 const eventMap = {
   onCloseClick: 'closeclick',
@@ -23,10 +26,16 @@ const updaterMap = {
   ): void {
     instance.registerPanoProvider(provider, options)
   },
-  links(instance: google.maps.StreetViewPanorama, links: google.maps.StreetViewLink[]): void {
+  links(
+    instance: google.maps.StreetViewPanorama,
+    links: google.maps.StreetViewLink[]
+  ): void {
     instance.setLinks(links)
   },
-  motionTracking(instance: google.maps.StreetViewPanorama, motionTracking: boolean): void {
+  motionTracking(
+    instance: google.maps.StreetViewPanorama,
+    motionTracking: boolean
+  ): void {
     instance.setMotionTracking(motionTracking)
   },
   options(
@@ -44,7 +53,10 @@ const updaterMap = {
   ): void {
     instance.setPosition(position)
   },
-  pov(instance: google.maps.StreetViewPanorama, pov: google.maps.StreetViewPov): void {
+  pov(
+    instance: google.maps.StreetViewPanorama,
+    pov: google.maps.StreetViewPov
+  ): void {
     instance.setPov(pov)
   },
   visible(instance: google.maps.StreetViewPanorama, visible: boolean): void {
@@ -53,10 +65,6 @@ const updaterMap = {
   zoom(instance: google.maps.StreetViewPanorama, zoom: number): void {
     instance.setZoom(zoom)
   },
-}
-
-interface StreetViewPanoramaState {
-  streetViewPanorama: google.maps.StreetViewPanorama | null
 }
 
 export interface StreetViewPanoramaProps {
@@ -83,71 +91,65 @@ export interface StreetViewPanoramaProps {
   onUnmount?: (streetViewPanorama: google.maps.StreetViewPanorama) => void
 }
 
-export class StreetViewPanorama extends React.PureComponent<
-  StreetViewPanoramaProps,
-  StreetViewPanoramaState
-> {
-  static contextType = MapContext
+function StreetViewPanorama(props: StreetViewPanoramaProps): JSX.Element {
+  const { options, onLoad, onUnmount } = props
+  const map = React.useContext(MapContext)
+  const prevProps: StreetViewPanoramaProps = usePrevious<
+    StreetViewPanoramaProps
+  >(props)
 
-  registeredEvents: google.maps.MapsEventListener[] = []
+  const [
+    instance,
+    setInstance,
+  ] = React.useState<google.maps.StreetViewPanorama | null>(null)
 
-  state: StreetViewPanoramaState = {
-    streetViewPanorama: null,
-  }
+  React.useEffect(
+    function effect() {
+      if (map !== null) {
+        if (instance === null) {
+          setInstance(map.getStreetView())
+        }
 
-  setStreetViewPanoramaCallback = (): void => {
-    if (this.state.streetViewPanorama !== null && this.props.onLoad) {
-      this.props.onLoad(this.state.streetViewPanorama)
-    }
-  }
-
-  componentDidMount(): void {
-    const streetViewPanorama = this.context.getStreetView()
-
-    this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-      updaterMap,
-      eventMap,
-      prevProps: {},
-      nextProps: this.props,
-      instance: streetViewPanorama,
-    })
-
-    this.setState(function setStreetViewPanorama() {
-      return {
-        streetViewPanorama,
-      }
-    }, this.setStreetViewPanoramaCallback)
-  }
-
-  componentDidUpdate(prevProps: StreetViewPanoramaProps): void {
-    if (this.state.streetViewPanorama !== null) {
-      unregisterEvents(this.registeredEvents)
-
-      this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-        updaterMap,
-        eventMap,
-        prevProps,
-        nextProps: this.props,
-        instance: this.state.streetViewPanorama,
-      })
-    }
-  }
-
-  componentWillUnmount(): void {
-    if (this.state.streetViewPanorama !== null) {
-      if (this.props.onUnmount) {
-        this.props.onUnmount(this.state.streetViewPanorama)
+        if (instance !== null) {
+          if (onLoad) {
+            onLoad(instance)
+          }
+        }
       }
 
-      unregisterEvents(this.registeredEvents)
+      return function cleanup() {
+        if (instance !== null) {
+          if (onUnmount) {
+            onUnmount(instance)
+          }
 
-      this.state.streetViewPanorama.setVisible(false)
-    }
-  }
+          instance.setVisible(false)
+        }
+      }
+    },
+    [instance, map, options, onLoad, onUnmount]
+  )
 
-  render(): React.ReactNode {
-    return null
-  }
+  React.useEffect(
+    function effect(): () => void {
+      const registeredEvents: google.maps.MapsEventListener[] = applyUpdatersToPropsAndRegisterEvents(
+        {
+          updaterMap,
+          eventMap,
+          prevProps,
+          nextProps: props,
+          instance,
+        }
+      )
+
+      return function cleanup(): void {
+        unregisterEvents(registeredEvents)
+      }
+    },
+    [props, instance, prevProps]
+  )
+
+  return <></>
 }
 
 export default StreetViewPanorama

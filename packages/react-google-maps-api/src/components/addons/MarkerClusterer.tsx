@@ -1,10 +1,4 @@
-/* eslint-disable filenames/match-exported */
 import * as React from 'react'
-
-import { unregisterEvents, applyUpdatersToPropsAndRegisterEvents } from '../../utils/helper'
-
-import MapContext from '../../map-context'
-
 import {
   Clusterer,
   ClusterIconStyle,
@@ -12,6 +6,13 @@ import {
   ClustererOptions,
   TCalculator,
 } from '@react-google-maps/marker-clusterer'
+
+import MapContext from '../../map-context'
+import {
+  unregisterEvents,
+  applyUpdatersToPropsAndRegisterEvents,
+} from '../../utils/helper'
+import { usePrevious } from '../../utils/use-previous'
 
 const eventMap = {
   onClick: 'click',
@@ -30,7 +31,7 @@ const updaterMap = {
     instance.setBatchSizeIE(batchSizeIE)
   },
 
-  calculator(instance: Clusterer, calculator: any): void {
+  calculator(instance: Clusterer, calculator: TCalculator): void {
     instance.setCalculator(calculator)
   },
 
@@ -81,10 +82,6 @@ const updaterMap = {
   zoomOnClick(instance: Clusterer, zoomOnClick: boolean): void {
     instance.setZoomOnClick(zoomOnClick)
   },
-}
-
-interface ClustererState {
-  markerClusterer: Clusterer | null
 }
 
 export interface ClustererProps {
@@ -138,73 +135,61 @@ export interface ClustererProps {
   onUnmount?: (markerClusterer: Clusterer) => void
 }
 
-export class ClustererComponent extends React.PureComponent<ClustererProps, ClustererState> {
-  static contextType = MapContext
+function ClustererComponent(props: ClustererProps): JSX.Element {
+  const { children, options, onLoad, onUnmount } = props
+  const map = React.useContext(MapContext)
+  const prevProps: ClustererProps = usePrevious<ClustererProps>(props)
 
-  registeredEvents: google.maps.MapsEventListener[] = []
+  const [instance, setInstance] = React.useState<Clusterer | null>(null)
 
-  state: ClustererState = {
-    markerClusterer: null,
-  }
-
-  setClustererCallback = (): void => {
-    if (this.state.markerClusterer !== null && this.props.onLoad) {
-      this.props.onLoad(this.state.markerClusterer)
-    }
-  }
-
-  componentDidMount(): void {
-    if (this.context) {
-      const markerClusterer = new Clusterer(this.context, [], this.props.options)
-
-      this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-        updaterMap,
-        eventMap,
-        prevProps: {},
-        nextProps: this.props,
-        instance: markerClusterer,
-      })
-
-      this.setState(function setClusterer(): ClustererState {
-        return {
-          markerClusterer,
+  React.useEffect(
+    function effect() {
+      if (map !== null) {
+        if (instance === null) {
+          setInstance(new Clusterer(map, [], options))
         }
-      }, this.setClustererCallback)
-    }
-  }
 
-  componentDidUpdate(prevProps: ClustererProps): void {
-    if (this.state.markerClusterer) {
-      unregisterEvents(this.registeredEvents)
-
-      this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-        updaterMap,
-        eventMap,
-        prevProps,
-        nextProps: this.props,
-        instance: this.state.markerClusterer,
-      })
-    }
-  }
-
-  componentWillUnmount(): void {
-    if (this.state.markerClusterer !== null) {
-      if (this.props.onUnmount) {
-        this.props.onUnmount(this.state.markerClusterer)
+        if (instance !== null) {
+          if (onLoad) {
+            onLoad(instance)
+          }
+        }
       }
 
-      unregisterEvents(this.registeredEvents)
-      // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-      // @ts-ignore
-      this.state.markerClusterer.setMap(null)
-    }
-  }
+      return function cleanup() {
+        if (instance !== null) {
+          if (onUnmount) {
+            onUnmount(instance)
+          }
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          instance.setMap(null)
+        }
+      }
+    },
+    [instance, map, options, onLoad, onUnmount]
+  )
 
-  render(): React.ReactNode {
-    return this.state.markerClusterer !== null
-      ? this.props.children(this.state.markerClusterer)
-      : null
-  }
+  React.useEffect(
+    function effect(): () => void {
+      const registeredEvents: google.maps.MapsEventListener[] = applyUpdatersToPropsAndRegisterEvents(
+        {
+          updaterMap,
+          eventMap,
+          prevProps,
+          nextProps: props,
+          instance,
+        }
+      )
+
+      return function cleanup(): void {
+        unregisterEvents(registeredEvents)
+      }
+    },
+    [props, instance, prevProps]
+  )
+
+  return instance !== null ? <>{children(instance)}</> : <></>
 }
 
-export default ClustererComponent
+export default React.memo(ClustererComponent)

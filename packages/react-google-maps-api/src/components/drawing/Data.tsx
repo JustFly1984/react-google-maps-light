@@ -1,8 +1,11 @@
 import * as React from 'react'
 
-import { unregisterEvents, applyUpdatersToPropsAndRegisterEvents } from '../../utils/helper'
-
 import MapContext from '../../map-context'
+import {
+  unregisterEvents,
+  applyUpdatersToPropsAndRegisterEvents,
+} from '../../utils/helper'
+import { usePrevious } from '../../utils/use-previous'
 
 const eventMap = {
   onAddFeature: 'addfeature',
@@ -28,15 +31,21 @@ const updaterMap = {
   },
   addgeojson(
     instance: google.maps.Data,
-    geojson: object,
+    geojson: Record<string, unknown>,
     options?: google.maps.Data.GeoJsonOptions
   ): void {
     instance.addGeoJson(geojson, options)
   },
-  contains(instance: google.maps.Data, feature: google.maps.Data.Feature): void {
+  contains(
+    instance: google.maps.Data,
+    feature: google.maps.Data.Feature
+  ): void {
     instance.contains(feature)
   },
-  foreach(instance: google.maps.Data, callback: (feature: google.maps.Data.Feature) => void): void {
+  foreach(
+    instance: google.maps.Data,
+    callback: (feature: google.maps.Data.Feature) => void
+  ): void {
     instance.forEach(callback)
   },
   loadgeojson(
@@ -57,13 +66,22 @@ const updaterMap = {
   remove(instance: google.maps.Data, feature: google.maps.Data.Feature): void {
     instance.remove(feature)
   },
-  revertstyle(instance: google.maps.Data, feature: google.maps.Data.Feature): void {
+  revertstyle(
+    instance: google.maps.Data,
+    feature: google.maps.Data.Feature
+  ): void {
     instance.revertStyle(feature)
   },
-  controlposition(instance: google.maps.Data, controlPosition: google.maps.ControlPosition): void {
+  controlposition(
+    instance: google.maps.Data,
+    controlPosition: google.maps.ControlPosition
+  ): void {
     instance.setControlPosition(controlPosition)
   },
-  controls(instance: google.maps.Data, controls: google.maps.DrawingMode[] | null): void {
+  controls(
+    instance: google.maps.Data,
+    controls: google.maps.DrawingMode[] | null
+  ): void {
     instance.setControls(controls)
   },
   drawingmode(instance: google.maps.Data, mode: google.maps.DrawingMode): void {
@@ -78,14 +96,16 @@ const updaterMap = {
   ): void {
     instance.setStyle(style)
   },
-  togeojson(instance: google.maps.Data, callback: (feature: object) => void): void {
+  togeojson(
+    instance: google.maps.Data,
+    // wait till @types/googlemapsapi support typescript 3.9.5
+    // eslint-disable-next-line @typescript-eslint/ban-types
+    callback: (feature: object) => void
+  ): void {
     instance.toGeoJson(callback)
   },
 }
 
-interface DataState {
-  data: google.maps.Data | null
-}
 export interface DataProps {
   options?: google.maps.Data.DataOptions
   /**  This event is fired when a feature is added to the collection. */
@@ -118,73 +138,67 @@ export interface DataProps {
   onUnmount?: (data: google.maps.Data) => void
 }
 
-export class Data extends React.PureComponent<DataProps, DataState> {
-  static contextType = MapContext
+function Data(props: DataProps): JSX.Element {
+  const { options, onLoad, onUnmount } = props
+  const map = React.useContext(MapContext)
+  const prevProps: DataProps = usePrevious<DataProps>(props)
 
-  registeredEvents: google.maps.MapsEventListener[] = []
+  const [instance, setInstance] = React.useState<google.maps.Data | null>(null)
 
-  state: DataState = {
-    data: null,
-  }
+  React.useEffect(
+    function effect() {
+      if (map !== null) {
+        if (instance === null) {
+          setInstance(
+            new google.maps.Data({
+              ...(options || {}),
+              map,
+            })
+          )
+        }
 
-  setDataCallback = (): void => {
-    if (this.state.data !== null && this.props.onLoad) {
-      this.props.onLoad(this.state.data)
-    }
-  }
+        if (instance !== null) {
+          instance.setMap(map)
 
-  componentDidMount(): void {
-    const data = new google.maps.Data({
-      ...(this.props.options || {}),
-      map: this.context,
-    })
-
-    this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-      updaterMap,
-      eventMap,
-      prevProps: {},
-      nextProps: this.props,
-      instance: data,
-    })
-
-    this.setState(function setData() {
-      return {
-        data,
-      }
-    }, this.setDataCallback)
-  }
-
-  componentDidUpdate(prevProps: DataProps): void {
-    if (this.state.data !== null) {
-      unregisterEvents(this.registeredEvents)
-
-      this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-        updaterMap,
-        eventMap,
-        prevProps,
-        nextProps: this.props,
-        instance: this.state.data,
-      })
-    }
-  }
-
-  componentWillUnmount(): void {
-    if (this.state.data !== null) {
-      if (this.props.onUnmount) {
-        this.props.onUnmount(this.state.data)
+          if (onLoad) {
+            onLoad(instance)
+          }
+        }
       }
 
-      unregisterEvents(this.registeredEvents)
+      return function cleanup() {
+        if (instance !== null) {
+          if (onUnmount) {
+            onUnmount(instance)
+          }
 
-      if (this.state.data) {
-        this.state.data.setMap(null)
+          instance.setMap(null)
+        }
       }
-    }
-  }
+    },
+    [instance, map, options, onLoad, onUnmount]
+  )
 
-  render(): null {
-    return null
-  }
+  React.useEffect(
+    function effect(): () => void {
+      const registeredEvents: google.maps.MapsEventListener[] = applyUpdatersToPropsAndRegisterEvents(
+        {
+          updaterMap,
+          eventMap,
+          prevProps,
+          nextProps: props,
+          instance,
+        }
+      )
+
+      return function cleanup(): void {
+        unregisterEvents(registeredEvents)
+      }
+    },
+    [props, instance, prevProps]
+  )
+
+  return <></>
 }
 
-export default Data
+export default React.memo(Data)

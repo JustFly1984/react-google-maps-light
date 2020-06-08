@@ -2,7 +2,11 @@ import * as React from 'react'
 
 import MapContext from './map-context'
 
-import { unregisterEvents, applyUpdatersToPropsAndRegisterEvents } from './utils/helper'
+import {
+  unregisterEvents,
+  applyUpdatersToPropsAndRegisterEvents,
+} from './utils/helper'
+import { usePrevious } from './utils/use-previous'
 
 const eventMap = {
   onDblClick: 'dblclick',
@@ -34,7 +38,10 @@ const updaterMap = {
       map.mapTypes.set(String(i), it)
     })
   },
-  center(map: google.maps.Map, center: google.maps.LatLng | google.maps.LatLngLiteral): void {
+  center(
+    map: google.maps.Map,
+    center: google.maps.LatLng | google.maps.LatLngLiteral
+  ): void {
     map.setCenter(center)
   },
   clickableIcons(map: google.maps.Map, clickable: boolean): void {
@@ -49,7 +56,10 @@ const updaterMap = {
   options(map: google.maps.Map, options: google.maps.MapOptions): void {
     map.setOptions(options)
   },
-  streetView(map: google.maps.Map, streetView: google.maps.StreetViewPanorama): void {
+  streetView(
+    map: google.maps.Map,
+    streetView: google.maps.StreetViewPanorama
+  ): void {
     map.setStreetView(streetView)
   },
   tilt(map: google.maps.Map, tilt: number): void {
@@ -60,11 +70,8 @@ const updaterMap = {
   },
 }
 
-interface GoogleMapState {
-  map: google.maps.Map | null
-}
-
 export interface GoogleMapProps {
+  children: React.ReactNode
   id?: string
   mapContainerStyle?: React.CSSProperties
   mapContainerClassName?: string
@@ -129,98 +136,74 @@ export interface GoogleMapProps {
   onUnmount?: (map: google.maps.Map) => void | Promise<void>
 }
 
-export class GoogleMap extends React.PureComponent<GoogleMapProps, GoogleMapState> {
-  state: GoogleMapState = {
-    map: null,
-  }
+function GoogleMap(props: GoogleMapProps): JSX.Element {
+  const {
+    children,
+    options,
+    id,
+    mapContainerStyle,
+    mapContainerClassName,
+    onLoad,
+    onUnmount,
+  } = props
+  const [instance, setInstance] = React.useState<google.maps.Map | null>(null)
+  const mapRef = React.createRef<HTMLDivElement>()
+  const prevProps: GoogleMapProps = usePrevious<GoogleMapProps>(props)
 
-  registeredEvents: google.maps.MapsEventListener[] = []
-
-  mapRef: Element | null = null
-
-  getInstance = (): google.maps.Map | null => {
-    if (this.mapRef === null) {
-      return null
-    }
-
-    return new google.maps.Map(this.mapRef, this.props.options)
-  }
-
-  panTo = (latLng: google.maps.LatLng | google.maps.LatLngLiteral): void => {
-    const map = this.getInstance()
-    if (map) {
-      map.panTo(latLng)
-    }
-  }
-
-  setMapCallback = (): void => {
-    if (this.state.map !== null) {
-      if (this.props.onLoad) {
-        this.props.onLoad(this.state.map)
-      }
-    }
-  }
-
-  componentDidMount(): void {
-    const map = this.getInstance()
-
-    this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-      updaterMap,
-      eventMap,
-      prevProps: {},
-      nextProps: this.props,
-      instance: map,
-    })
-
-    this.setState(function setMap() {
-      return {
-        map,
-      }
-    }, this.setMapCallback)
-  }
-
-  componentDidUpdate(prevProps: GoogleMapProps): void {
-    if (this.state.map !== null) {
-      unregisterEvents(this.registeredEvents)
-
-      this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-        updaterMap,
-        eventMap,
-        prevProps,
-        nextProps: this.props,
-        instance: this.state.map,
-      })
-    }
-  }
-
-  componentWillUnmount(): void {
-    if (this.state.map !== null) {
-      if (this.props.onUnmount) {
-        this.props.onUnmount(this.state.map)
+  React.useEffect(
+    function effect() {
+      if (instance === null && mapRef.current !== null) {
+        setInstance(new google.maps.Map(mapRef.current, options))
       }
 
-      unregisterEvents(this.registeredEvents)
-    }
-  }
+      if (instance !== null) {
+        if (onLoad) {
+          onLoad(instance)
+        }
+      }
 
-  getRef = (ref: HTMLDivElement | null): void => {
-    this.mapRef = ref
-  }
+      return function cleanup(): void {
+        if (instance !== null) {
+          if (onUnmount) {
+            onUnmount(instance)
+          }
+        }
+      }
+    },
+    [instance, options, onLoad, onUnmount, mapRef]
+  )
 
-  render(): React.ReactNode {
-    return (
-      <div
-        id={this.props.id}
-        ref={this.getRef}
-        style={this.props.mapContainerStyle}
-        className={this.props.mapContainerClassName}
-      >
-        <MapContext.Provider value={this.state.map}>
-          {this.state.map !== null ? this.props.children : <></>}
-        </MapContext.Provider>
-      </div>
-    )
-  }
+  React.useEffect(
+    function effect(): () => void {
+      const registeredEvents: google.maps.MapsEventListener[] = applyUpdatersToPropsAndRegisterEvents(
+        {
+          updaterMap,
+          eventMap,
+          prevProps,
+          nextProps: props,
+          instance,
+        }
+      )
+
+      return function cleanup(): void {
+        unregisterEvents(registeredEvents)
+      }
+    },
+    [props, instance, prevProps]
+  )
+
+  return (
+    <div
+      id={id}
+      ref={mapRef}
+      style={mapContainerStyle}
+      className={mapContainerClassName}
+    >
+      <MapContext.Provider value={instance}>
+        {instance !== null ? children : <></>}
+      </MapContext.Provider>
+    </div>
+  )
 }
 
-export default GoogleMap
+export default React.memo(GoogleMap)

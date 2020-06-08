@@ -1,7 +1,11 @@
-import { PureComponent } from 'react'
+import * as React from 'react'
 
-import { unregisterEvents, applyUpdatersToPropsAndRegisterEvents } from '../../utils/helper'
+import {
+  unregisterEvents,
+  applyUpdatersToPropsAndRegisterEvents,
+} from '../../utils/helper'
 import MapContext from '../../map-context'
+import { usePrevious } from '../../utils/use-previous'
 
 const eventMap = {
   onClick: 'click',
@@ -10,7 +14,10 @@ const eventMap = {
 }
 
 const updaterMap = {
-  options(instance: google.maps.KmlLayer, options: google.maps.KmlLayerOptions): void {
+  options(
+    instance: google.maps.KmlLayer,
+    options: google.maps.KmlLayerOptions
+  ): void {
     instance.setOptions(options)
   },
   url(instance: google.maps.KmlLayer, url: string): void {
@@ -19,10 +26,6 @@ const updaterMap = {
   zIndex(instance: google.maps.KmlLayer, zIndex: number): void {
     instance.setZIndex(zIndex)
   },
-}
-
-interface KmlLayerState {
-  kmlLayer: google.maps.KmlLayer | null
 }
 
 export interface KmlLayerProps {
@@ -43,71 +46,69 @@ export interface KmlLayerProps {
   onUnmount: (kmlLayer: google.maps.KmlLayer) => void
 }
 
-export class KmlLayer extends PureComponent<KmlLayerProps, KmlLayerState> {
-  static contextType = MapContext
+function KmlLayer(props: KmlLayerProps): JSX.Element {
+  const { options, onLoad, onUnmount } = props
+  const map = React.useContext(MapContext)
+  const prevProps: KmlLayerProps = usePrevious<KmlLayerProps>(props)
 
-  registeredEvents: google.maps.MapsEventListener[] = []
+  const [instance, setInstance] = React.useState<google.maps.KmlLayer | null>(
+    null
+  )
 
-  state: KmlLayerState = {
-    kmlLayer: null,
-  }
+  React.useEffect(
+    function effect() {
+      if (map !== null) {
+        if (instance === null) {
+          setInstance(
+            new google.maps.KmlLayer({
+              ...(options || {}),
+              map,
+            })
+          )
+        }
 
-  setKmlLayerCallback = (): void => {
-    if (this.state.kmlLayer !== null && this.props.onLoad) {
-      this.props.onLoad(this.state.kmlLayer)
-    }
-  }
+        if (instance !== null) {
+          instance.setMap(map)
 
-  componentDidMount(): void {
-    const kmlLayer = new google.maps.KmlLayer({
-      ...this.props.options,
-      map: this.context,
-    })
-
-    this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-      updaterMap,
-      eventMap,
-      prevProps: {},
-      nextProps: this.props,
-      instance: kmlLayer,
-    })
-
-    this.setState(function setLmlLayer() {
-      return {
-        kmlLayer,
-      }
-    }, this.setKmlLayerCallback)
-  }
-
-  componentDidUpdate(prevProps: KmlLayerProps): void {
-    if (this.state.kmlLayer !== null) {
-      unregisterEvents(this.registeredEvents)
-
-      this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-        updaterMap,
-        eventMap,
-        prevProps,
-        nextProps: this.props,
-        instance: this.state.kmlLayer,
-      })
-    }
-  }
-
-  componentWillUnmount(): void {
-    if (this.state.kmlLayer !== null) {
-      if (this.props.onUnmount) {
-        this.props.onUnmount(this.state.kmlLayer)
+          if (onLoad) {
+            onLoad(instance)
+          }
+        }
       }
 
-      unregisterEvents(this.registeredEvents)
+      return function cleanup() {
+        if (instance !== null) {
+          if (onUnmount) {
+            onUnmount(instance)
+          }
 
-      this.state.kmlLayer.setMap(null)
-    }
-  }
+          instance.setMap(null)
+        }
+      }
+    },
+    [instance, map, options, onLoad, onUnmount]
+  )
 
-  render(): React.ReactNode {
-    return null
-  }
+  React.useEffect(
+    function effect(): () => void {
+      const registeredEvents: google.maps.MapsEventListener[] = applyUpdatersToPropsAndRegisterEvents(
+        {
+          updaterMap,
+          eventMap,
+          prevProps,
+          nextProps: props,
+          instance,
+        }
+      )
+
+      return function cleanup(): void {
+        unregisterEvents(registeredEvents)
+      }
+    },
+    [props, instance, prevProps]
+  )
+
+  return <></>
 }
 
-export default KmlLayer
+export default React.memo(KmlLayer)

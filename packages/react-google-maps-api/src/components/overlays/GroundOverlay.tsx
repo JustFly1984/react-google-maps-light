@@ -2,10 +2,13 @@ import * as React from 'react'
 
 import invariant from 'invariant'
 
-import { unregisterEvents, applyUpdatersToPropsAndRegisterEvents } from '../../utils/helper'
-
+import {
+  unregisterEvents,
+  applyUpdatersToPropsAndRegisterEvents,
+} from '../../utils/helper'
 import MapContext from '../../map-context'
 import { noop } from '../../utils/noop'
+import { usePrevious } from '../../utils/use-previous'
 
 const eventMap = {
   onDblClick: 'dblclick',
@@ -16,10 +19,6 @@ const updaterMap = {
   opacity(instance: google.maps.GroundOverlay, opacity: number): void {
     instance.setOpacity(opacity)
   },
-}
-
-interface GroundOverlayState {
-  groundOverlay: google.maps.GroundOverlay | null
 }
 
 export interface GroundOverlayProps {
@@ -40,78 +39,84 @@ export interface GroundOverlayProps {
   onUnmount?: (groundOverlay: google.maps.GroundOverlay) => void
 }
 
-export class GroundOverlay extends React.PureComponent<GroundOverlayProps, GroundOverlayState> {
-  public static defaultProps = {
-    onLoad: noop,
-  }
+function GroundOverlay(props: GroundOverlayProps): JSX.Element {
+  const {
+    options,
+    // opacity,
+    // onDblClick,
+    // onClick,
+    url,
+    bounds,
+    onLoad = noop,
+    onUnmount,
+  } = props
+  const map = React.useContext(MapContext)
+  const prevProps: GroundOverlayProps = usePrevious<GroundOverlayProps>(props)
 
-  static contextType = MapContext
+  const [
+    instance,
+    setInstance,
+  ] = React.useState<google.maps.GroundOverlay | null>(null)
 
-  registeredEvents: google.maps.MapsEventListener[] = []
+  React.useEffect(
+    function effect() {
+      invariant(
+        !!url || !!bounds,
+        `For GroundOverlay, url and bounds are passed in to constructor and are immutable after instantiated. This is the behavior of Google Maps JavaScript API v3 ( See https://developers.google.com/maps/documentation/javascript/reference#GroundOverlay) Hence, use the corresponding two props provided by \`react-google-maps-api\`, url and bounds. In some cases, you'll need the GroundOverlay component to reflect the changes of url and bounds. You can leverage the React's key property to remount the component. Typically, just \`key={url}\` would serve your need. See https://github.com/tomchentw/react-google-maps/issues/655`
+      )
 
-  state: GroundOverlayState = {
-    groundOverlay: null,
-  }
+      if (map !== null) {
+        if (instance === null) {
+          setInstance(
+            new google.maps.GroundOverlay(url, bounds, {
+              ...(options || {}),
+              map,
+            })
+          )
+        }
 
-  setGroundOverlayCallback = (): void => {
-    if (this.state.groundOverlay !== null && this.props.onLoad) {
-      this.props.onLoad(this.state.groundOverlay)
-    }
-  }
+        if (instance !== null) {
+          instance.setMap(map)
 
-  componentDidMount(): void {
-    invariant(
-      !!this.props.url || !!this.props.bounds,
-      `For GroundOverlay, url and bounds are passed in to constructor and are immutable after instantiated. This is the behavior of Google Maps JavaScript API v3 ( See https://developers.google.com/maps/documentation/javascript/reference#GroundOverlay) Hence, use the corresponding two props provided by \`react-google-maps-api\`, url and bounds. In some cases, you'll need the GroundOverlay component to reflect the changes of url and bounds. You can leverage the React's key property to remount the component. Typically, just \`key={url}\` would serve your need. See https://github.com/tomchentw/react-google-maps/issues/655`
-    )
-
-    const groundOverlay = new google.maps.GroundOverlay(this.props.url, this.props.bounds, {
-      ...this.props.options,
-      map: this.context,
-    })
-
-    this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-      updaterMap,
-      eventMap,
-      prevProps: {},
-      nextProps: this.props,
-      instance: groundOverlay,
-    })
-
-    this.setState(function setGroundOverlay() {
-      return {
-        groundOverlay,
-      }
-    }, this.setGroundOverlayCallback)
-  }
-
-  componentDidUpdate(prevProps: GroundOverlayProps): void {
-    if (this.state.groundOverlay !== null) {
-      unregisterEvents(this.registeredEvents)
-
-      this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-        updaterMap,
-        eventMap,
-        prevProps,
-        nextProps: this.props,
-        instance: this.state.groundOverlay,
-      })
-    }
-  }
-
-  componentWillUnmount(): void {
-    if (this.state.groundOverlay) {
-      if (this.props.onUnmount) {
-        this.props.onUnmount(this.state.groundOverlay)
+          if (onLoad) {
+            onLoad(instance)
+          }
+        }
       }
 
-      this.state.groundOverlay.setMap(null)
-    }
-  }
+      return function cleanup() {
+        if (instance !== null) {
+          if (onUnmount) {
+            onUnmount(instance)
+          }
 
-  render(): React.ReactNode {
-    return null
-  }
+          instance.setMap(null)
+        }
+      }
+    },
+    [instance, map, bounds, url, options, onLoad, onUnmount]
+  )
+
+  React.useEffect(
+    function effect(): () => void {
+      const registeredEvents: google.maps.MapsEventListener[] = applyUpdatersToPropsAndRegisterEvents(
+        {
+          updaterMap,
+          eventMap,
+          prevProps,
+          nextProps: props,
+          instance,
+        }
+      )
+
+      return function cleanup(): void {
+        unregisterEvents(registeredEvents)
+      }
+    },
+    [props, instance, prevProps]
+  )
+
+  return <></>
 }
 
-export default GroundOverlay
+export default React.memo(GroundOverlay)

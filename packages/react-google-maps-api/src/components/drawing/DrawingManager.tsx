@@ -3,9 +3,12 @@ import * as React from 'react'
 
 import invariant from 'invariant'
 
-import { unregisterEvents, applyUpdatersToPropsAndRegisterEvents } from '../../utils/helper'
-
 import MapContext from '../../map-context'
+import {
+  unregisterEvents,
+  applyUpdatersToPropsAndRegisterEvents,
+} from '../../utils/helper'
+import { usePrevious } from '../../utils/use-previous'
 
 const eventMap = {
   onCircleComplete: 'circlecomplete',
@@ -31,10 +34,6 @@ const updaterMap = {
   },
 }
 
-interface DrawingManagerState {
-  drawingManager: google.maps.drawing.DrawingManager | null
-}
-
 export interface DrawingManagerProps {
   options?: google.maps.drawing.DrawingManagerOptions
   /** Changes the DrawingManager's drawing mode, which defines the type of overlay to be added on the map. Accepted values are 'marker', 'polygon', 'polyline', 'rectangle', 'circle', or null. A drawing mode of null means that the user can interact with the map as normal, and clicks do not draw anything. */
@@ -57,81 +56,76 @@ export interface DrawingManagerProps {
   onUnmount?: (drawingManager: google.maps.drawing.DrawingManager) => void
 }
 
-export class DrawingManager extends React.PureComponent<DrawingManagerProps, DrawingManagerState> {
-  static contextType = MapContext
+function DrawingManager(props: DrawingManagerProps): JSX.Element {
+  const { options, onLoad, onUnmount } = props
+  const map = React.useContext(MapContext)
+  const prevProps: DrawingManagerProps = usePrevious<DrawingManagerProps>(props)
 
-  registeredEvents: google.maps.MapsEventListener[] = []
+  const [
+    instance,
+    setInstance,
+  ] = React.useState<google.maps.drawing.DrawingManager | null>(null)
 
-  state: DrawingManagerState = {
-    drawingManager: null,
-  }
+  React.useEffect(
+    function effect() {
+      invariant(
+        !!google.maps.drawing,
+        `Did you include prop libraries={['drawing']} in the URL? %s`,
+        google.maps.drawing
+      )
 
-  constructor(props: DrawingManagerProps) {
-    super(props)
+      if (map !== null) {
+        if (instance === null) {
+          setInstance(
+            new google.maps.drawing.DrawingManager({
+              ...(options || {}),
+              map,
+            })
+          )
+        }
 
-    invariant(
-      !!google.maps.drawing,
-      `Did you include prop libraries={['drawing']} in the URL? %s`,
-      google.maps.drawing
-    )
-  }
+        if (instance !== null) {
+          instance.setMap(map)
 
-  setDrawingManagerCallback = (): void => {
-    if (this.state.drawingManager !== null && this.props.onLoad) {
-      this.props.onLoad(this.state.drawingManager)
-    }
-  }
-
-  componentDidMount(): void {
-    const drawingManager = new google.maps.drawing.DrawingManager({
-      ...(this.props.options || {}),
-      map: this.context,
-    })
-
-    this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-      updaterMap,
-      eventMap,
-      prevProps: {},
-      nextProps: this.props,
-      instance: drawingManager,
-    })
-
-    this.setState(function setDrawingManager() {
-      return {
-        drawingManager,
-      }
-    }, this.setDrawingManagerCallback)
-  }
-
-  componentDidUpdate(prevProps: DrawingManagerProps): void {
-    if (this.state.drawingManager !== null) {
-      unregisterEvents(this.registeredEvents)
-
-      this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-        updaterMap,
-        eventMap,
-        prevProps,
-        nextProps: this.props,
-        instance: this.state.drawingManager,
-      })
-    }
-  }
-
-  componentWillUnmount(): void {
-    if (this.state.drawingManager !== null) {
-      if (this.props.onUnmount) {
-        this.props.onUnmount(this.state.drawingManager)
+          if (onLoad) {
+            onLoad(instance)
+          }
+        }
       }
 
-      unregisterEvents(this.registeredEvents)
+      return function cleanup() {
+        if (instance !== null) {
+          if (onUnmount) {
+            onUnmount(instance)
+          }
 
-      this.state.drawingManager.setMap(null)
-    }
-  }
+          instance.setMap(null)
+        }
+      }
+    },
+    [instance, map, options, onLoad, onUnmount]
+  )
 
-  render(): JSX.Element {
-    return <></>
-  }
+  React.useEffect(
+    function effect(): () => void {
+      const registeredEvents: google.maps.MapsEventListener[] = applyUpdatersToPropsAndRegisterEvents(
+        {
+          updaterMap,
+          eventMap,
+          prevProps,
+          nextProps: props,
+          instance,
+        }
+      )
+
+      return function cleanup(): void {
+        unregisterEvents(registeredEvents)
+      }
+    },
+    [props, instance, prevProps]
+  )
+
+  return <></>
 }
 
-export default DrawingManager
+export default React.memo(DrawingManager)

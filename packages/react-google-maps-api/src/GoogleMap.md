@@ -4,18 +4,22 @@
 const { LoadScript } = require("./LoadScript");
 const ScriptLoaded = require("./docs/ScriptLoaded").default;
 
+const mapContainerStyle = {
+  height: "400px",
+  width: "800px"
+};
+
+const center = {
+  lat: -3.745,
+  lng: -38.523
+};
+
 <ScriptLoaded>
   <GoogleMap
     id="circle-example"
-    mapContainerStyle={{
-      height: "400px",
-      width: "800px"
-    }}
+    mapContainerStyle={mapContainerStyle}
     zoom={7}
-    center={{
-      lat: -3.745,
-      lng: -38.523
-    }}
+    center={center}
   />
 </ScriptLoaded>;
 ```

@@ -1,7 +1,11 @@
 import * as React from 'react'
 
-import { unregisterEvents, applyUpdatersToPropsAndRegisterEvents } from '../../utils/helper'
 import MapContext from '../../map-context'
+import {
+  unregisterEvents,
+  applyUpdatersToPropsAndRegisterEvents,
+} from '../../utils/helper'
+import { usePrevious } from '../../utils/use-previous'
 
 const eventMap = {
   onBoundsChanged: 'bounds_changed',
@@ -34,16 +38,15 @@ const updaterMap = {
   map(instance: google.maps.Rectangle, map: google.maps.Map): void {
     instance.setMap(map)
   },
-  options(instance: google.maps.Rectangle, options: google.maps.RectangleOptions): void {
+  options(
+    instance: google.maps.Rectangle,
+    options: google.maps.RectangleOptions
+  ): void {
     instance.setOptions(options)
   },
   visible(instance: google.maps.Rectangle, visible: boolean): void {
     instance.setVisible(visible)
   },
-}
-
-interface RectangleState {
-  rectangle: google.maps.Rectangle | null
 }
 
 export interface RectangleProps {
@@ -88,71 +91,69 @@ export interface RectangleProps {
   onUnmount?: (rectangle: google.maps.Rectangle) => void
 }
 
-export class Rectangle extends React.PureComponent<RectangleProps, RectangleState> {
-  static contextType = MapContext
+function Rectangle(props: RectangleProps): JSX.Element {
+  const { options, onLoad, onUnmount } = props
+  const map = React.useContext(MapContext)
+  const prevProps: RectangleProps = usePrevious<RectangleProps>(props)
 
-  registeredEvents: google.maps.MapsEventListener[] = []
+  const [instance, setInstance] = React.useState<google.maps.Rectangle | null>(
+    null
+  )
 
-  state: RectangleState = {
-    rectangle: null,
-  }
+  React.useEffect(
+    function effect() {
+      if (map !== null) {
+        if (instance === null) {
+          setInstance(
+            new google.maps.Rectangle({
+              ...(options || {}),
+              map,
+            })
+          )
+        }
 
-  setRectangleCallback = (): void => {
-    if (this.state.rectangle !== null && this.props.onLoad) {
-      this.props.onLoad(this.state.rectangle)
-    }
-  }
+        if (instance !== null) {
+          instance.setMap(map)
 
-  componentDidMount(): void {
-    const rectangle = new google.maps.Rectangle({
-      ...(this.props.options || {}),
-      map: this.context,
-    })
-
-    this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-      updaterMap,
-      eventMap,
-      prevProps: {},
-      nextProps: this.props,
-      instance: rectangle,
-    })
-
-    this.setState(function setRectangle() {
-      return {
-        rectangle,
-      }
-    }, this.setRectangleCallback)
-  }
-
-  componentDidUpdate(prevProps: RectangleProps): void {
-    if (this.state.rectangle !== null) {
-      unregisterEvents(this.registeredEvents)
-
-      this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-        updaterMap,
-        eventMap,
-        prevProps,
-        nextProps: this.props,
-        instance: this.state.rectangle,
-      })
-    }
-  }
-
-  componentWillUnmount(): void {
-    if (this.state.rectangle !== null) {
-      if (this.props.onUnmount) {
-        this.props.onUnmount(this.state.rectangle)
+          if (onLoad) {
+            onLoad(instance)
+          }
+        }
       }
 
-      unregisterEvents(this.registeredEvents)
+      return function cleanup() {
+        if (instance !== null) {
+          if (onUnmount) {
+            onUnmount(instance)
+          }
 
-      this.state.rectangle.setMap(null)
-    }
-  }
+          instance.setMap(null)
+        }
+      }
+    },
+    [instance, map, options, onLoad, onUnmount]
+  )
 
-  render(): React.ReactNode {
-    return <></>
-  }
+  React.useEffect(
+    function effect(): () => void {
+      const registeredEvents: google.maps.MapsEventListener[] = applyUpdatersToPropsAndRegisterEvents(
+        {
+          updaterMap,
+          eventMap,
+          prevProps,
+          nextProps: props,
+          instance,
+        }
+      )
+
+      return function cleanup(): void {
+        unregisterEvents(registeredEvents)
+      }
+    },
+    [props, instance, prevProps]
+  )
+
+  return <></>
 }
 
-export default Rectangle
+export default React.memo(Rectangle)

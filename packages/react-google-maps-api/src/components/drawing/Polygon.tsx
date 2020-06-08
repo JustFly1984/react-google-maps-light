@@ -1,9 +1,12 @@
 /* global google */
 import * as React from 'react'
 
-import { unregisterEvents, applyUpdatersToPropsAndRegisterEvents } from '../../utils/helper'
-
 import MapContext from '../../map-context'
+import {
+  unregisterEvents,
+  applyUpdatersToPropsAndRegisterEvents,
+} from '../../utils/helper'
+import { usePrevious } from '../../utils/use-previous'
 
 const eventMap = {
   onClick: 'click',
@@ -29,7 +32,10 @@ const updaterMap = {
   map(instance: google.maps.Polygon, map: google.maps.Map): void {
     instance.setMap(map)
   },
-  options(instance: google.maps.Polygon, options: google.maps.PolygonOptions): void {
+  options(
+    instance: google.maps.Polygon,
+    options: google.maps.PolygonOptions
+  ): void {
     instance.setOptions(options)
   },
   path(
@@ -58,10 +64,6 @@ const updaterMap = {
   visible(instance: google.maps.Polygon, visible: boolean): void {
     instance.setVisible(visible)
   },
-}
-
-interface PolygonState {
-  polygon: google.maps.Polygon | null
 }
 
 export interface PolygonProps {
@@ -113,71 +115,69 @@ export interface PolygonProps {
   onUnmount?: (polygon: google.maps.Polygon) => void
 }
 
-export class Polygon extends React.PureComponent<PolygonProps, PolygonState> {
-  static contextType = MapContext
+function Polygon(props: PolygonProps): JSX.Element {
+  const { options, onLoad, onUnmount } = props
+  const map = React.useContext(MapContext)
+  const prevProps: PolygonProps = usePrevious<PolygonProps>(props)
 
-  registeredEvents: google.maps.MapsEventListener[] = []
+  const [instance, setInstance] = React.useState<google.maps.Polygon | null>(
+    null
+  )
 
-  state: PolygonState = {
-    polygon: null,
-  }
+  React.useEffect(
+    function effect() {
+      if (map !== null) {
+        if (instance === null) {
+          setInstance(
+            new google.maps.Polygon({
+              ...(options || {}),
+              map,
+            })
+          )
+        }
 
-  setPolygonCallback = (): void => {
-    if (this.state.polygon !== null && this.props.onLoad) {
-      this.props.onLoad(this.state.polygon)
-    }
-  }
+        if (instance !== null) {
+          instance.setMap(map)
 
-  componentDidMount(): void {
-    const polygon = new google.maps.Polygon({
-      ...(this.props.options || {}),
-      map: this.context,
-    })
-
-    this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-      updaterMap,
-      eventMap,
-      prevProps: {},
-      nextProps: this.props,
-      instance: polygon,
-    })
-
-    this.setState(function setPolygon() {
-      return {
-        polygon,
-      }
-    }, this.setPolygonCallback)
-  }
-
-  componentDidUpdate(prevProps: PolygonProps): void {
-    if (this.state.polygon !== null) {
-      unregisterEvents(this.registeredEvents)
-
-      this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-        updaterMap,
-        eventMap,
-        prevProps,
-        nextProps: this.props,
-        instance: this.state.polygon,
-      })
-    }
-  }
-
-  componentWillUnmount(): void {
-    if (this.state.polygon !== null) {
-      if (this.props.onUnmount) {
-        this.props.onUnmount(this.state.polygon)
+          if (onLoad) {
+            onLoad(instance)
+          }
+        }
       }
 
-      unregisterEvents(this.registeredEvents)
+      return function cleanup() {
+        if (instance !== null) {
+          if (onUnmount) {
+            onUnmount(instance)
+          }
 
-      this.state.polygon && this.state.polygon.setMap(null)
-    }
-  }
+          instance.setMap(null)
+        }
+      }
+    },
+    [instance, map, options, onLoad, onUnmount]
+  )
 
-  render(): React.ReactNode {
-    return null
-  }
+  React.useEffect(
+    function effect(): () => void {
+      const registeredEvents: google.maps.MapsEventListener[] = applyUpdatersToPropsAndRegisterEvents(
+        {
+          updaterMap,
+          eventMap,
+          prevProps,
+          nextProps: props,
+          instance,
+        }
+      )
+
+      return function cleanup(): void {
+        unregisterEvents(registeredEvents)
+      }
+    },
+    [props, instance, prevProps]
+  )
+
+  return <></>
 }
 
-export default Polygon
+export default React.memo(Polygon)

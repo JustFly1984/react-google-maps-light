@@ -2,25 +2,26 @@ const isRobotoStyle = (element: HTMLElement): boolean => {
   // roboto font download
   if (
     (element as HTMLLinkElement).href &&
-    (element as HTMLLinkElement).href.indexOf('https://fonts.googleapis.com/css?family=Roboto') ===
-      0
+    (element as HTMLLinkElement).href.indexOf(
+      'https://fonts.googleapis.com/css?family=Roboto'
+    ) === 0
   ) {
     return true
   }
   // roboto style elements
   if (
     element.tagName.toLowerCase() === 'style' &&
-    // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     element.styleSheet &&
-    // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     element.styleSheet.cssText &&
-    // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     element.styleSheet.cssText.replace('\r\n', '').indexOf('.gm-style') === 0
   ) {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     element.styleSheet.cssText = ''
     return true
@@ -37,7 +38,7 @@ const isRobotoStyle = (element: HTMLElement): boolean => {
   // when google tries to add empty style
   if (
     element.tagName.toLowerCase() === 'style' &&
-    // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     !element.styleSheet &&
     !element.innerHTML
@@ -57,7 +58,7 @@ export const preventGoogleFonts = (): void => {
   const trueInsertBefore = head.insertBefore.bind(head)
 
   // TODO: adding return before reflect solves the TS issue
-  // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
   head.insertBefore = function insertBefore(
     newElement: HTMLElement,
@@ -71,7 +72,7 @@ export const preventGoogleFonts = (): void => {
   const trueAppend = head.appendChild.bind(head)
 
   // TODO: adding return before reflect solves the TS issue
-  // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
   head.appendChild = function appendChild(textNode: HTMLElement): void {
     if (!isRobotoStyle(textNode)) {

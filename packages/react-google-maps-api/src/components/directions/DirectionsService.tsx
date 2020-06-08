@@ -1,10 +1,6 @@
 import * as React from 'react'
 import invariant from 'invariant'
 
-interface DirectionsServiceState {
-  directionsService: google.maps.DirectionsService | null
-}
-
 export interface DirectionsServiceProps {
   // required for default functionality
   options: google.maps.DirectionsRequest
@@ -24,53 +20,52 @@ export interface DirectionsServiceProps {
   onUnmount?: (directionsService: google.maps.DirectionsService) => void
 }
 
-export class DirectionsService extends React.PureComponent<
-  DirectionsServiceProps,
-  DirectionsServiceState
-> {
-  state: DirectionsServiceState = {
-    directionsService: null,
-  }
+function DirectionsService(props: DirectionsServiceProps): JSX.Element {
+  const { options, callback, onLoad, onUnmount } = props
+  const [
+    instance,
+    setInstance,
+  ] = React.useState<google.maps.DirectionsService | null>(null)
 
-  setDirectionsServiceCallback = (): void => {
-    if (this.state.directionsService !== null && this.props.onLoad) {
-      this.props.onLoad(this.state.directionsService)
-    }
-  }
+  React.useEffect(
+    function effect() {
+      invariant(
+        !!options,
+        'DirectionsService expected options object as parameter, but got %s',
+        options
+      )
 
-  componentDidMount(): void {
-    invariant(
-      !!this.props.options,
-      'DirectionsService expected options object as parameter, but got %s',
-      this.props.options
-    )
-
-    const directionsService = new google.maps.DirectionsService()
-
-    this.setState(function setDirectionsService() {
-      return {
-        directionsService,
+      if (instance === null) {
+        setInstance(new google.maps.DirectionsService())
       }
-    }, this.setDirectionsServiceCallback)
-  }
 
-  componentDidUpdate(): void {
-    if (this.state.directionsService !== null) {
-      this.state.directionsService.route(this.props.options, this.props.callback)
-    }
-  }
-
-  componentWillUnmount(): void {
-    if (this.state.directionsService !== null) {
-      if (this.props.onUnmount) {
-        this.props.onUnmount(this.state.directionsService)
+      if (instance !== null) {
+        if (onLoad) {
+          onLoad(instance)
+        }
       }
-    }
-  }
 
-  render(): JSX.Element {
-    return <></>
-  }
+      return function cleanup(): void {
+        if (instance !== null) {
+          if (onUnmount) {
+            onUnmount(instance)
+          }
+        }
+      }
+    },
+    [instance, options, onLoad, onUnmount]
+  )
+
+  React.useEffect(
+    function effect() {
+      if (instance !== null) {
+        instance.route(options, callback)
+      }
+    },
+    [instance, options, callback]
+  )
+
+  return <></>
 }
 
-export default DirectionsService
+export default React.memo(DirectionsService)

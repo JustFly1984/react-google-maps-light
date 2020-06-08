@@ -1,8 +1,11 @@
 import * as React from 'react'
 
-import { unregisterEvents, applyUpdatersToPropsAndRegisterEvents } from '../../utils/helper'
-
 import MapContext from '../../map-context'
+import {
+  unregisterEvents,
+  applyUpdatersToPropsAndRegisterEvents,
+} from '../../utils/helper'
+import { usePrevious } from '../../utils/use-previous'
 
 const eventMap = {
   onClick: 'click',
@@ -28,7 +31,10 @@ const updaterMap = {
   map(instance: google.maps.Polyline, map: google.maps.Map): void {
     instance.setMap(map)
   },
-  options(instance: google.maps.Polyline, options: google.maps.PolylineOptions): void {
+  options(
+    instance: google.maps.Polyline,
+    options: google.maps.PolylineOptions
+  ): void {
     instance.setOptions(options)
   },
   path(
@@ -43,10 +49,6 @@ const updaterMap = {
   visible(instance: google.maps.Polyline, visible: boolean): void {
     instance.setVisible(visible)
   },
-}
-
-interface PolylineState {
-  polyline: google.maps.Polyline | null
 }
 
 export interface PolylineProps {
@@ -90,71 +92,69 @@ export interface PolylineProps {
   onUnmount?: (polyline: google.maps.Polyline) => void
 }
 
-export class Polyline extends React.PureComponent<PolylineProps, PolylineState> {
-  static contextType = MapContext
+function Polyline(props: PolylineProps): JSX.Element {
+  const { options, onLoad, onUnmount } = props
+  const map = React.useContext(MapContext)
+  const prevProps: PolylineProps = usePrevious<PolylineProps>(props)
 
-  registeredEvents: google.maps.MapsEventListener[] = []
+  const [instance, setInstance] = React.useState<google.maps.Polyline | null>(
+    null
+  )
 
-  state: PolylineState = {
-    polyline: null,
-  }
+  React.useEffect(
+    function effect() {
+      if (map !== null) {
+        if (instance === null) {
+          setInstance(
+            new google.maps.Polyline({
+              ...(options || {}),
+              map,
+            })
+          )
+        }
 
-  setPolylineCallback = (): void => {
-    if (this.state.polyline !== null && this.props.onLoad) {
-      this.props.onLoad(this.state.polyline)
-    }
-  }
+        if (instance !== null) {
+          instance.setMap(map)
 
-  componentDidMount(): void {
-    const polyline = new google.maps.Polyline({
-      ...(this.props.options || {}),
-      map: this.context,
-    })
-
-    this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-      updaterMap,
-      eventMap,
-      prevProps: {},
-      nextProps: this.props,
-      instance: polyline,
-    })
-
-    this.setState(function setPolyline() {
-      return {
-        polyline,
-      }
-    }, this.setPolylineCallback)
-  }
-
-  componentDidUpdate(prevProps: PolylineProps): void {
-    if (this.state.polyline !== null) {
-      unregisterEvents(this.registeredEvents)
-
-      this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-        updaterMap,
-        eventMap,
-        prevProps,
-        nextProps: this.props,
-        instance: this.state.polyline,
-      })
-    }
-  }
-
-  componentWillUnmount(): void {
-    if (this.state.polyline !== null) {
-      if (this.props.onUnmount) {
-        this.props.onUnmount(this.state.polyline)
+          if (onLoad) {
+            onLoad(instance)
+          }
+        }
       }
 
-      unregisterEvents(this.registeredEvents)
+      return function cleanup() {
+        if (instance !== null) {
+          if (onUnmount) {
+            onUnmount(instance)
+          }
 
-      this.state.polyline.setMap(null)
-    }
-  }
+          instance.setMap(null)
+        }
+      }
+    },
+    [instance, map, options, onLoad, onUnmount]
+  )
 
-  render(): React.ReactNode {
-    return <></>
-  }
+  React.useEffect(
+    function effect(): () => void {
+      const registeredEvents: google.maps.MapsEventListener[] = applyUpdatersToPropsAndRegisterEvents(
+        {
+          updaterMap,
+          eventMap,
+          prevProps,
+          nextProps: props,
+          instance,
+        }
+      )
+
+      return function cleanup(): void {
+        unregisterEvents(registeredEvents)
+      }
+    },
+    [props, instance, prevProps]
+  )
+
+  return <></>
 }
 
-export default Polyline
+export default React.memo(Polyline)

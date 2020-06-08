@@ -1,11 +1,13 @@
-/* eslint-disable filenames/match-regex */
 import * as React from 'react'
 import invariant from 'invariant'
 
 import { isBrowser } from './utils/isbrowser'
 import { injectScript } from './utils/injectscript'
 import { preventGoogleFonts } from './utils/prevent-google-fonts'
-import { makeLoadScriptUrl, LoadScriptUrlOptions } from './utils/make-load-script-url'
+import {
+  makeLoadScriptUrl,
+  LoadScriptUrlOptions,
+} from './utils/make-load-script-url'
 
 import { defaultLoadScriptProps } from './LoadScript'
 
@@ -105,7 +107,7 @@ export function useLoadScript({
           console.error(err)
         })
     },
-    [id, url]
+    [id, url, googleMapsApiKey, googleMapsClientId]
   )
 
   const prevLibraries = React.useRef<undefined | string[]>()

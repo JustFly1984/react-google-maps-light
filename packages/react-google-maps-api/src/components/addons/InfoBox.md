@@ -20,6 +20,9 @@ const onLoad = infoBox => {
   console.log('infoBox: ', infoBox)
 };
 
+const styleOuterDiv = { backgroundColor: 'yellow', opacity: 0.75, padding: 12 };
+const styleInnerDiv = { fontSize: 16, fontColor: `#08233B` };
+
 <ScriptLoaded>
   <GoogleMap
     id="InfoBox-example"
@@ -32,8 +35,8 @@ const onLoad = infoBox => {
       options={options}
       position={center}
     >
-      <div style={{ backgroundColor: 'yellow', opacity: 0.75, padding: 12 }}>
-        <div style={{ fontSize: 16, fontColor: `#08233B` }}>
+      <div style={styleOuterDiv}>
+        <div style={styleInnerDiv}>
           Hello, World!
         </div>
       </div>

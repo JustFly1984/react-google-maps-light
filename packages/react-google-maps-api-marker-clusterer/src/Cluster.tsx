@@ -1,5 +1,4 @@
 /* global google */
-/* eslint-disable filenames/match-regex */
 import { Clusterer } from './Clusterer'
 
 import { ClusterIcon } from './ClusterIcon'
@@ -19,7 +18,7 @@ export class Cluster {
 
   constructor(markerClusterer: Clusterer) {
     this.markerClusterer = markerClusterer
-    // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     this.map = this.markerClusterer.getMap()
 
@@ -74,8 +73,8 @@ export class Cluster {
     return bounds
   }
 
-  remove() {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+  remove(): void {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     this.clusterIcon.setMap(null)
 
@@ -156,13 +155,13 @@ export class Cluster {
     return false
   }
 
-  calculateBounds() {
+  calculateBounds(): void {
     this.bounds = this.markerClusterer.getExtendedBounds(
       new google.maps.LatLngBounds(this.center, this.center)
     )
   }
 
-  updateIcon() {
+  updateIcon(): void {
     const mCount = this.markers.length
 
     const maxZoom = this.markerClusterer.getMaxZoom()
@@ -185,7 +184,10 @@ export class Cluster {
     }
 
     this.clusterIcon.useStyle(
-      this.markerClusterer.getCalculator()(this.markers, this.markerClusterer.getStyles().length)
+      this.markerClusterer.getCalculator()(
+        this.markers,
+        this.markerClusterer.getStyles().length
+      )
     )
 
     this.clusterIcon.show()

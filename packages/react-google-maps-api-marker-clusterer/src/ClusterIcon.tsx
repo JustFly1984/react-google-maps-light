@@ -1,5 +1,4 @@
 /* global google */
-/* eslint-disable filenames/match-regex */
 import { Cluster } from './Cluster'
 
 import { ClusterIconStyle, ClusterIconInfo } from './types'
@@ -49,12 +48,12 @@ export class ClusterIcon {
     this.fontStyle = 'normal'
     this.fontFamily = 'Arial,sans-serif'
     this.backgroundPosition = '0 0'
-    // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     this.setMap(cluster.getMap()) // Note: this causes onAdd to be called
   }
 
-  onAdd() {
+  onAdd(): void {
     let cMouseDownInCluster: boolean
     let cDraggingMapByCluster: boolean
 
@@ -64,13 +63,13 @@ export class ClusterIcon {
       this.show()
     }
 
-    // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     this.getPanes().overlayMouseTarget.appendChild(this.div)
 
     // Fix for Issue 157
     this.boundsChangedListener = google.maps.event.addListener(
-      // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
       this.getMap(),
       'boundschanged',
@@ -79,103 +78,101 @@ export class ClusterIcon {
       }
     )
 
-    google.maps.event.addDomListener(this.div, 'mousedown', function onMouseDown() {
-      cMouseDownInCluster = true
-      cDraggingMapByCluster = false
-    })
-
-    // eslint-disable-next-line  @getify/proper-arrows/this, @getify/proper-arrows/name
     google.maps.event.addDomListener(
       this.div,
-      'click',
-      // eslint-disable-next-line  @getify/proper-arrows/this, @getify/proper-arrows/name
-      (event: Event) => {
-        cMouseDownInCluster = false
+      'mousedown',
+      function onMouseDown() {
+        cMouseDownInCluster = true
+        cDraggingMapByCluster = false
+      }
+    )
 
-        if (!cDraggingMapByCluster) {
-          const markerClusterer = this.cluster.getClusterer()
+    google.maps.event.addDomListener(this.div, 'click', (event: Event) => {
+      cMouseDownInCluster = false
 
-          /**
-           * This event is fired when a cluster marker is clicked.
-           * @name MarkerClusterer#click
-           * @param {Cluster} c The cluster that was clicked.
-           * @event
-           */
-          google.maps.event.trigger(markerClusterer, 'click', this.cluster)
-          google.maps.event.trigger(markerClusterer, 'clusterclick', this.cluster) // deprecated name
+      if (!cDraggingMapByCluster) {
+        const markerClusterer = this.cluster.getClusterer()
 
-          // The default click handler follows. Disable it by setting
-          // the zoomOnClick property to false.
-          if (markerClusterer.getZoomOnClick()) {
-            // Zoom into the cluster.
-            const maxZoom = markerClusterer.getMaxZoom()
+        /**
+         * This event is fired when a cluster marker is clicked.
+         * @name MarkerClusterer#click
+         * @param {Cluster} c The cluster that was clicked.
+         * @event
+         */
+        google.maps.event.trigger(markerClusterer, 'click', this.cluster)
+        google.maps.event.trigger(markerClusterer, 'clusterclick', this.cluster) // deprecated name
 
-            const bounds = this.cluster.getBounds()
+        // The default click handler follows. Disable it by setting
+        // the zoomOnClick property to false.
+        if (markerClusterer.getZoomOnClick()) {
+          // Zoom into the cluster.
+          const maxZoom = markerClusterer.getMaxZoom()
 
-            // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+          const bounds = this.cluster.getBounds()
+
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          markerClusterer.getMap().fitBounds(bounds)
+
+          // There is a fix for Issue 170 here:
+          setTimeout(function timeout() {
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
             // @ts-ignore
             markerClusterer.getMap().fitBounds(bounds)
 
-            // There is a fix for Issue 170 here:
-            setTimeout(function timeout() {
-              // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+            // Don't zoom beyond the max zoom level
+            if (
+              maxZoom !== null &&
+              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
               // @ts-ignore
-              markerClusterer.getMap().fitBounds(bounds)
-
-              // Don't zoom beyond the max zoom level
-              // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+              markerClusterer.getMap().getZoom() > maxZoom
+            ) {
+              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
               // @ts-ignore
-              if (maxZoom !== null && markerClusterer.getMap().getZoom() > maxZoom) {
-                // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-                // @ts-ignore
-                markerClusterer.getMap().setZoom(maxZoom + 1)
-              }
-            }, 100)
-          }
+              markerClusterer.getMap().setZoom(maxZoom + 1)
+            }
+          }, 100)
+        }
 
-          // Prevent event propagation to the map:
-          event.cancelBubble = true
+        // Prevent event propagation to the map:
+        event.cancelBubble = true
 
-          if (event.stopPropagation) {
-            event.stopPropagation()
-          }
+        if (event.stopPropagation) {
+          event.stopPropagation()
         }
       }
-    )
+    })
 
-    google.maps.event.addDomListener(
-      this.div,
-      'mouseover',
-      // eslint-disable-next-line  @getify/proper-arrows/this, @getify/proper-arrows/name
-      () => {
-        /**
-         * This event is fired when the mouse moves over a cluster marker.
-         * @name MarkerClusterer#mouseover
-         * @param {Cluster} c The cluster that the mouse moved over.
-         * @event
-         */
-        google.maps.event.trigger(this.cluster.getClusterer(), 'mouseover', this.cluster)
-      }
-    )
+    google.maps.event.addDomListener(this.div, 'mouseover', () => {
+      /**
+       * This event is fired when the mouse moves over a cluster marker.
+       * @name MarkerClusterer#mouseover
+       * @param {Cluster} c The cluster that the mouse moved over.
+       * @event
+       */
+      google.maps.event.trigger(
+        this.cluster.getClusterer(),
+        'mouseover',
+        this.cluster
+      )
+    })
 
-    // eslint-disable-next-line  @getify/proper-arrows/this, @getify/proper-arrows/name
-    google.maps.event.addDomListener(
-      this.div,
-      'mouseout',
-      // eslint-disable-next-line  @getify/proper-arrows/this, @getify/proper-arrows/name
-      () => {
-        /**
-         * This event is fired when the mouse moves out of a cluster marker.
-         * @name MarkerClusterer#mouseout
-         * @param {Cluster} c The cluster that the mouse moved out of.
-         * @event
-         */
-        google.maps.event.trigger(this.cluster.getClusterer(), 'mouseout', this.cluster)
-      }
-    )
+    google.maps.event.addDomListener(this.div, 'mouseout', () => {
+      /**
+       * This event is fired when the mouse moves out of a cluster marker.
+       * @name MarkerClusterer#mouseout
+       * @param {Cluster} c The cluster that the mouse moved out of.
+       * @event
+       */
+      google.maps.event.trigger(
+        this.cluster.getClusterer(),
+        'mouseout',
+        this.cluster
+      )
+    })
   }
 
-  onRemove() {
+  onRemove(): void {
     if (this.div && this.div.parentNode) {
       this.hide()
 
@@ -191,7 +188,7 @@ export class ClusterIcon {
     }
   }
 
-  draw() {
+  draw(): void {
     if (this.visible && this.div !== null && this.center) {
       const { x, y } = this.getPosFromLatLng(this.center)
 
@@ -200,7 +197,7 @@ export class ClusterIcon {
     }
   }
 
-  hide() {
+  hide(): void {
     if (this.div) {
       this.div.style.display = 'none'
     }
@@ -208,10 +205,10 @@ export class ClusterIcon {
     this.visible = false
   }
 
-  show() {
+  show(): void {
     if (this.div && this.center) {
-      let img = '',
-        divTitle = ''
+      let img = ''
+      let divTitle = ''
 
       // NOTE: values must be specified in px units
       const bp = this.backgroundPosition.split(' ')
@@ -222,7 +219,11 @@ export class ClusterIcon {
 
       const pos = this.getPosFromLatLng(this.center)
 
-      if (this.sums === null || typeof this.sums.title === 'undefined' || this.sums.title === '') {
+      if (
+        this.sums === null ||
+        typeof this.sums.title === 'undefined' ||
+        this.sums.title === ''
+      ) {
         divTitle = this.cluster.getClusterer().getTitle()
       } else {
         divTitle = this.sums.title
@@ -241,8 +242,8 @@ export class ClusterIcon {
         spriteH +
         'px; '
 
-      // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-      //@ts-ignore
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
       if (!this.cluster.getClusterer().enableRetinaIcons) {
         img +=
           'clip: rect(' +
@@ -294,7 +295,7 @@ export class ClusterIcon {
         this.height +
         'px;' +
         "'>" +
-        // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         this.sums.text +
         '</div>'
@@ -307,10 +308,12 @@ export class ClusterIcon {
     this.visible = true
   }
 
-  useStyle(sums: ClusterIconInfo) {
+  useStyle(sums: ClusterIconInfo): void {
     this.sums = sums
 
-    const style = this.styles[Math.min(this.styles.length - 1, Math.max(0, sums.index - 1))]
+    const style = this.styles[
+      Math.min(this.styles.length - 1, Math.max(0, sums.index - 1))
+    ]
 
     this.url = style.url
     this.height = style.height
@@ -333,7 +336,7 @@ export class ClusterIcon {
     this.backgroundPosition = style.backgroundPosition || '0 0'
   }
 
-  setCenter(center: google.maps.LatLng) {
+  setCenter(center: google.maps.LatLng): void {
     this.center = center
   }
 
@@ -342,7 +345,9 @@ export class ClusterIcon {
 
     style.push('cursor: pointer;')
 
-    style.push('position: absolute; top: ' + pos.y + 'px; left: ' + pos.x + 'px;')
+    style.push(
+      'position: absolute; top: ' + pos.y + 'px; left: ' + pos.x + 'px;'
+    )
 
     style.push('width: ' + this.width + 'px; height: ' + this.height + 'px;')
 
@@ -350,7 +355,7 @@ export class ClusterIcon {
   }
 
   getPosFromLatLng(latlng: google.maps.LatLng): google.maps.Point {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     const pos = this.getProjection().fromLatLngToDivPixel(latlng)
 

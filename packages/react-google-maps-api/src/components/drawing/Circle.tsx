@@ -1,8 +1,11 @@
 import * as React from 'react'
 
-import { unregisterEvents, applyUpdatersToPropsAndRegisterEvents } from '../../utils/helper'
-
 import MapContext from '../../map-context'
+import {
+  unregisterEvents,
+  applyUpdatersToPropsAndRegisterEvents,
+} from '../../utils/helper'
+import { usePrevious } from '../../utils/use-previous'
 
 const eventMap = {
   onCenterChanged: 'center_changed',
@@ -33,7 +36,10 @@ const updaterMap = {
   map(instance: google.maps.Circle, map: google.maps.Map): void {
     instance.setMap(map)
   },
-  options(instance: google.maps.Circle, options: google.maps.CircleOptions): void {
+  options(
+    instance: google.maps.Circle,
+    options: google.maps.CircleOptions
+  ): void {
     instance.setOptions(options)
   },
   radius(instance: google.maps.Circle, radius: number): void {
@@ -42,10 +48,6 @@ const updaterMap = {
   visible(instance: google.maps.Circle, visible: boolean): void {
     instance.setVisible(visible)
   },
-}
-
-interface CircleState {
-  circle: google.maps.Circle | null
 }
 
 export interface CircleProps {
@@ -96,71 +98,69 @@ export interface CircleProps {
   onUnmount?: (circle: google.maps.Circle) => void
 }
 
-export class Circle extends React.PureComponent<CircleProps, CircleState> {
-  static contextType = MapContext
+function Circle(props: CircleProps): JSX.Element {
+  const { options, onLoad, onUnmount } = props
+  const map = React.useContext(MapContext)
+  const prevProps: CircleProps = usePrevious<CircleProps>(props)
 
-  registeredEvents: google.maps.MapsEventListener[] = []
+  const [instance, setInstance] = React.useState<google.maps.Circle | null>(
+    null
+  )
 
-  state: CircleState = {
-    circle: null,
-  }
+  React.useEffect(
+    function effect() {
+      if (map !== null) {
+        if (instance === null) {
+          setInstance(
+            new google.maps.Circle({
+              ...(options || {}),
+              map,
+            })
+          )
+        }
 
-  setCircleCallback = (): void => {
-    if (this.state.circle !== null && this.props.onLoad) {
-      this.props.onLoad(this.state.circle)
-    }
-  }
+        if (instance !== null) {
+          instance.setMap(map)
 
-  componentDidMount(): void {
-    const circle = new google.maps.Circle({
-      ...(this.props.options || {}),
-      map: this.context,
-    })
-
-    this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-      updaterMap,
-      eventMap,
-      prevProps: {},
-      nextProps: this.props,
-      instance: circle,
-    })
-
-    this.setState(function setCircle() {
-      return {
-        circle,
-      }
-    }, this.setCircleCallback)
-  }
-
-  componentDidUpdate(prevProps: CircleProps): void {
-    if (this.state.circle !== null) {
-      unregisterEvents(this.registeredEvents)
-
-      this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-        updaterMap,
-        eventMap,
-        prevProps,
-        nextProps: this.props,
-        instance: this.state.circle,
-      })
-    }
-  }
-
-  componentWillUnmount(): void {
-    if (this.state.circle !== null) {
-      if (this.props.onUnmount) {
-        this.props.onUnmount(this.state.circle)
+          if (onLoad) {
+            onLoad(instance)
+          }
+        }
       }
 
-      unregisterEvents(this.registeredEvents)
+      return function cleanup() {
+        if (instance !== null) {
+          if (onUnmount) {
+            onUnmount(instance)
+          }
 
-      this.state.circle && this.state.circle.setMap(null)
-    }
-  }
+          instance.setMap(null)
+        }
+      }
+    },
+    [instance, map, options, onLoad, onUnmount]
+  )
 
-  render(): JSX.Element {
-    return <></>
-  }
+  React.useEffect(
+    function effect(): () => void {
+      const registeredEvents: google.maps.MapsEventListener[] = applyUpdatersToPropsAndRegisterEvents(
+        {
+          updaterMap,
+          eventMap,
+          prevProps,
+          nextProps: props,
+          instance,
+        }
+      )
+
+      return function cleanup(): void {
+        unregisterEvents(registeredEvents)
+      }
+    },
+    [props, instance, prevProps]
+  )
+
+  return <></>
 }
 
-export default Circle
+export default React.memo(Circle)

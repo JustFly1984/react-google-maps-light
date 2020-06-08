@@ -1,10 +1,12 @@
 import * as React from 'react'
-
 import invariant from 'invariant'
 
-import { unregisterEvents, applyUpdatersToPropsAndRegisterEvents } from '../../utils/helper'
-
 import MapContext from '../../map-context'
+import {
+  unregisterEvents,
+  applyUpdatersToPropsAndRegisterEvents,
+} from '../../utils/helper'
+import { usePrevious } from '../../utils/use-previous'
 
 const eventMap = {
   onPlacesChanged: 'places_changed',
@@ -19,11 +21,8 @@ const updaterMap = {
   },
 }
 
-interface StandaloneSearchBoxState {
-  searchBox: google.maps.places.SearchBox | null
-}
-
 export interface StandaloneSearchBoxProps {
+  children: React.ReactNode
   /** The area towards which to bias query predictions. Predictions are biased towards, but not restricted to, queries targeting these bounds. */
   bounds?: google.maps.LatLngBounds | google.maps.LatLngBoundsLiteral
   options?: google.maps.places.SearchBoxOptions
@@ -35,83 +34,74 @@ export interface StandaloneSearchBoxProps {
   onUnmount?: (searchBox: google.maps.places.SearchBox) => void
 }
 
-class StandaloneSearchBox extends React.PureComponent<
-  StandaloneSearchBoxProps,
-  StandaloneSearchBoxState
-> {
-  static contextType = MapContext
+function StandaloneSearchBox(props: StandaloneSearchBoxProps): JSX.Element {
+  const { children, options, onLoad, onUnmount } = props
+  const map = React.useContext(MapContext)
+  const prevProps: StandaloneSearchBoxProps = usePrevious<
+    StandaloneSearchBoxProps
+  >(props)
+  const containerElementRef = React.useRef<HTMLDivElement | null>(null)
 
-  registeredEvents: google.maps.MapsEventListener[] = []
+  const [
+    instance,
+    setInstance,
+  ] = React.useState<google.maps.places.SearchBox | null>(null)
 
-  containerElement: React.RefObject<HTMLDivElement> = React.createRef()
+  React.useEffect(
+    function effect() {
+      invariant(
+        !!google.maps.places,
+        'You need to provide libraries={["places"]} prop to <LoadScript /> component %s',
+        google.maps.places
+      )
 
-  state: StandaloneSearchBoxState = {
-    searchBox: null,
-  }
+      if (map !== null) {
+        if (containerElementRef.current !== null) {
+          const input = containerElementRef.current.querySelector('input')
 
-  setSearchBoxCallback = (): void => {
-    if (this.state.searchBox !== null && this.props.onLoad) {
-      this.props.onLoad(this.state.searchBox)
-    }
-  }
+          if (input !== null) {
+            const searchBox = new google.maps.places.SearchBox(input, options)
 
-  componentDidMount(): void {
-    invariant(
-      !!google.maps.places,
-      'You need to provide libraries={["places"]} prop to <LoadScript /> component %s',
-      google.maps.places
-    )
+            setInstance(searchBox)
 
-    if (this.containerElement !== null && this.containerElement.current !== null) {
-      const input = this.containerElement.current.querySelector('input')
+            if (searchBox !== null && onLoad) {
+              onLoad(searchBox)
+            }
+          }
+        }
+      }
 
-      if (input !== null) {
-        const searchBox = new google.maps.places.SearchBox(input, this.props.options)
+      return function cleanup() {
+        if (instance !== null) {
+          if (onUnmount) {
+            onUnmount(instance)
+          }
+        }
+      }
+    },
+    [instance, map, options, onLoad, onUnmount]
+  )
 
-        this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
+  React.useEffect(
+    function effect(): () => void {
+      const registeredEvents: google.maps.MapsEventListener[] = applyUpdatersToPropsAndRegisterEvents(
+        {
           updaterMap,
           eventMap,
-          prevProps: {},
-          nextProps: this.props,
-          instance: searchBox,
-        })
+          prevProps,
+          nextProps: props,
+          instance,
+        }
+      )
 
-        this.setState(function setSearchBox() {
-          return {
-            searchBox,
-          }
-        }, this.setSearchBoxCallback)
+      return function cleanup(): void {
+        unregisterEvents(registeredEvents)
       }
-    }
-  }
+    },
+    [props, instance, prevProps]
+  )
 
-  componentDidUpdate(prevProps: StandaloneSearchBoxProps): void {
-    if (this.state.searchBox !== null) {
-      unregisterEvents(this.registeredEvents)
-
-      this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-        updaterMap,
-        eventMap,
-        prevProps,
-        nextProps: this.props,
-        instance: this.state.searchBox,
-      })
-    }
-  }
-
-  componentWillUnmount(): void {
-    if (this.state.searchBox !== null) {
-      if (this.props.onUnmount) {
-        this.props.onUnmount(this.state.searchBox)
-      }
-
-      unregisterEvents(this.registeredEvents)
-    }
-  }
-
-  render(): React.ReactNode {
-    return <div ref={this.containerElement}>{React.Children.only(this.props.children)}</div>
-  }
+  return <div ref={containerElementRef}>{React.Children.only(children)}</div>
 }
 
-export default StandaloneSearchBox
+export default React.memo(StandaloneSearchBox)

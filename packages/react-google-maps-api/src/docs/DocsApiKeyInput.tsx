@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { setKey, getKey } from './docs-api-key'
+import * as storage from './docs-api-key'
 
 import LoadScript from '../LoadScript'
 
@@ -18,73 +18,80 @@ const buttonStyle = {
 
 const loadingElement: JSX.Element = <div>Loading...</div>
 
-interface DocsApiKeyInputState {
-  key: string
-  loadScript: boolean
+interface DocsApiKeyInputProps {
+  children: React.ReactChild
 }
 
-class DocsApiKeyInput extends React.Component<{}, DocsApiKeyInputState> {
-  constructor(props: {}) {
-    super(props)
+function DocsApiKeyInput({ children }: DocsApiKeyInputProps): JSX.Element {
+  const [key, setKey] = React.useState<string | null>(null)
+  const [inputKey, setInputKey] = React.useState('')
 
-    const key = getKey()
+  React.useEffect(
+    function effect() {
+      const k = key === null ? storage.getKey() : inputKey
 
-    this.state = key ? { key, loadScript: true } : { key: '', loadScript: false }
-  }
-
-  onInputChange = ({ target: { value } }: React.ChangeEvent<HTMLInputElement>): void => {
-    this.setState(function setKey() {
-      return {
-        key: value,
+      if (k !== null) {
+        storage.setKey(k)
       }
-    })
-  }
+    },
+    [key, inputKey]
+  )
 
-  onFormSubmit = (event: React.FormEvent<HTMLFormElement>): void => {
-    event.preventDefault()
+  const onInputChange = React.useCallback(function callback({
+    target: { value },
+  }: React.ChangeEvent<HTMLInputElement>): void {
+    setInputKey(value)
+  },
+  [])
 
-    setKey(this.state.key)
+  const onFormSubmit = React.useCallback(
+    function callback(event: React.FormEvent<HTMLFormElement>): void {
+      event.preventDefault()
 
-    this.setState(function setLoadScript() {
-      return {
-        loadScript: true,
+      if (inputKey === '') {
+        setKey(null)
+        storage.removeKey()
       }
-    })
-  }
 
-  render(): React.ReactNode {
-    return (
-      <>
-        <form onSubmit={this.onFormSubmit}>
-          <input
-            type='text'
-            onChange={this.onInputChange}
-            value={this.state.key}
-            placeholder='Enter Google Maps API Key'
-            style={inputStyle}
-          />
+      setKey(inputKey)
+      storage.setKey(inputKey)
+    },
+    [inputKey]
+  )
 
-          <button type='submit' style={buttonStyle}>
-            Set Key
-          </button>
-        </form>
+  return (
+    <>
+      <form onSubmit={onFormSubmit}>
+        <input
+          type='text'
+          onChange={onInputChange}
+          value={inputKey}
+          placeholder='Enter Google Maps API Key'
+          style={inputStyle}
+        />
 
-        {this.state.loadScript ? (
-          <LoadScript
-            id='script-loader'
-            googleMapsApiKey={this.state.key}
-            language='en'
-            region='EN'
-            version='weekly'
-            libraries={libraries}
-            loadingElement={loadingElement}
-          />
-        ) : (
-          <></>
-        )}
-      </>
-    )
-  }
+        <button type='submit' style={buttonStyle}>
+          Set Key
+        </button>
+      </form>
+
+      {key !== null ? (
+        <LoadScript
+          id='script-loader'
+          googleMapsApiKey={key}
+          language='en'
+          region='EN'
+          version='weekly'
+          libraries={libraries}
+          loadingElement={loadingElement}
+        >
+          {children}
+        </LoadScript>
+      ) : (
+        <></>
+      )}
+    </>
+  )
 }
 
-export default DocsApiKeyInput
+export default React.memo(DocsApiKeyInput)

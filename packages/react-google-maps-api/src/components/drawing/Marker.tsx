@@ -1,12 +1,15 @@
 import * as React from 'react'
 
-import { unregisterEvents, applyUpdatersToPropsAndRegisterEvents } from '../../utils/helper'
-
 import MapContext from '../../map-context'
-import { HasMarkerAnchor } from '../../types'
+import {
+  unregisterEvents,
+  applyUpdatersToPropsAndRegisterEvents,
+} from '../../utils/helper'
+import { usePrevious } from '../../utils/use-previous'
 
 import { Clusterer } from '@react-google-maps/marker-clusterer'
-import { ReactNode } from 'react'
+
+import { HasMarkerAnchor } from '../../types'
 
 const eventMap = {
   onAnimationChanged: 'animation_changed',
@@ -33,7 +36,10 @@ const eventMap = {
 }
 
 const updaterMap = {
-  animation(instance: google.maps.Marker, animation: google.maps.Animation): void {
+  animation(
+    instance: google.maps.Marker,
+    animation: google.maps.Animation
+  ): void {
     instance.setAnimation(animation)
   },
   clickable(instance: google.maps.Marker, clickable: boolean): void {
@@ -45,10 +51,16 @@ const updaterMap = {
   draggable(instance: google.maps.Marker, draggable: boolean): void {
     instance.setDraggable(draggable)
   },
-  icon(instance: google.maps.Marker, icon: string | google.maps.Icon | google.maps.Symbol): void {
+  icon(
+    instance: google.maps.Marker,
+    icon: string | google.maps.Icon | google.maps.Symbol
+  ): void {
     instance.setIcon(icon)
   },
-  label(instance: google.maps.Marker, label: string | google.maps.MarkerLabel): void {
+  label(
+    instance: google.maps.Marker,
+    label: string | google.maps.MarkerLabel
+  ): void {
     instance.setLabel(label)
   },
   map(instance: google.maps.Marker, map: google.maps.Map): void {
@@ -57,7 +69,10 @@ const updaterMap = {
   opacity(instance: google.maps.Marker, opacity: number): void {
     instance.setOpacity(opacity)
   },
-  options(instance: google.maps.Marker, options: google.maps.MarkerOptions): void {
+  options(
+    instance: google.maps.Marker,
+    options: google.maps.MarkerOptions
+  ): void {
     instance.setOptions(options)
   },
   position(
@@ -80,11 +95,8 @@ const updaterMap = {
   },
 }
 
-interface MarkerState {
-  marker: google.maps.Marker | null
-}
-
 export interface MarkerProps {
+  children?: React.ReactNode
   options?: google.maps.MarkerOptions
   /** Start an animation. Any ongoing animation will be cancelled. Currently supported animations are: BOUNCE, DROP. Passing in null will cause any animation to stop. */
   animation?: google.maps.Animation
@@ -164,105 +176,113 @@ export interface MarkerProps {
   onUnmount?: (marker: google.maps.Marker) => void
 }
 
-export class Marker extends React.PureComponent<MarkerProps, MarkerState> {
-  static contextType = MapContext
+function Marker(props: MarkerProps): JSX.Element {
+  const {
+    children,
+    options,
+    position,
+    clusterer,
+    noClustererRedraw,
+    onLoad,
+    onUnmount,
+  } = props
+  const map = React.useContext(MapContext)
+  const prevProps: MarkerProps = usePrevious<MarkerProps>(props)
 
-  registeredEvents: google.maps.MapsEventListener[] = []
+  const [instance, setInstance] = React.useState<google.maps.Marker | null>(
+    null
+  )
 
-  state: MarkerState = {
-    marker: null,
-  }
+  React.useEffect(
+    function effect() {
+      if (map !== null) {
+        if (instance === null) {
+          const marker = new google.maps.Marker({
+            ...(options || {}),
+            ...(clusterer ? {} : { map }),
+            position,
+          })
 
-  setMarkerCallback = (): void => {
-    if (this.state.marker !== null && this.props.onLoad) {
-      this.props.onLoad(this.state.marker)
-    }
-  }
+          if (clusterer) {
+            clusterer.addMarker(marker, !!noClustererRedraw)
+          } else {
+            marker.setMap(map)
+          }
 
-  componentDidMount(): void {
-    const markerOptions = {
-      ...(this.props.options || {}),
-      ...(this.props.clusterer ? {} : { map: this.context }),
-      position: this.props.position,
-    }
-
-    const marker = new google.maps.Marker(markerOptions)
-
-    if (this.props.clusterer) {
-      this.props.clusterer.addMarker(
-        // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-        // @ts-ignore
-        marker,
-        !!this.props.noClustererRedraw
-      )
-    } else {
-      marker.setMap(this.context)
-    }
-
-    this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-      updaterMap,
-      eventMap,
-      prevProps: {},
-      nextProps: this.props,
-      instance: marker,
-    })
-
-    this.setState(function setMarker() {
-      return {
-        marker,
-      }
-    }, this.setMarkerCallback)
-  }
-
-  componentDidUpdate(prevProps: MarkerProps): void {
-    if (this.state.marker !== null) {
-      unregisterEvents(this.registeredEvents)
-
-      this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-        updaterMap,
-        eventMap,
-        prevProps,
-        nextProps: this.props,
-        instance: this.state.marker,
-      })
-    }
-  }
-
-  componentWillUnmount(): void {
-    if (this.state.marker !== null) {
-      if (this.props.onUnmount) {
-        this.props.onUnmount(this.state.marker)
-      }
-
-      unregisterEvents(this.registeredEvents)
-
-      if (this.props.clusterer) {
-        this.props.clusterer.removeMarker(
-          // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-          // @ts-ignore
-          this.state.marker,
-          !!this.props.noClustererRedraw
-        )
-      } else {
-        this.state.marker && this.state.marker.setMap(null)
-      }
-    }
-  }
-
-  render(): React.ReactNode {
-    let children: ReactNode | null = null
-    if(this.props.children) {
-      children = React.Children.map(this.props.children, child => {
-        if(!React.isValidElement<HasMarkerAnchor>(child)) {
-          return child;
+          setInstance(marker)
         }
 
-        let elementChild: React.ReactElement<HasMarkerAnchor> = child;
-        return React.cloneElement(elementChild, {anchor: this.state.marker});
-      })
-    }
-    return children || null
+        if (instance !== null) {
+          instance.setMap(map)
+
+          if (onLoad) {
+            onLoad(instance)
+          }
+        }
+      }
+
+      return function cleanup() {
+        if (instance !== null) {
+          if (onUnmount) {
+            onUnmount(instance)
+          }
+
+          if (clusterer) {
+            clusterer.removeMarker(instance, !!noClustererRedraw)
+          } else {
+            instance && instance.setMap(null)
+          }
+        }
+      }
+    },
+    [
+      instance,
+      map,
+      options,
+      clusterer,
+      noClustererRedraw,
+      position,
+      onLoad,
+      onUnmount,
+    ]
+  )
+
+  React.useEffect(
+    function effect(): () => void {
+      const registeredEvents: google.maps.MapsEventListener[] = applyUpdatersToPropsAndRegisterEvents(
+        {
+          updaterMap,
+          eventMap,
+          prevProps,
+          nextProps: props,
+          instance,
+        }
+      )
+
+      return function cleanup(): void {
+        unregisterEvents(registeredEvents)
+      }
+    },
+    [props, instance, prevProps]
+  )
+
+  if (children) {
+    return (
+      <>
+        {React.Children.map(children, function mapper(child) {
+          if (!React.isValidElement<HasMarkerAnchor>(child)) {
+            return child
+          }
+
+          const elementChild: React.ReactElement<HasMarkerAnchor> = child
+
+          return React.cloneElement(elementChild, { anchor: instance })
+        })}
+      </>
+    )
+  } else {
+    return <></>
   }
 }
 
-export default Marker
+export default React.memo(Marker)

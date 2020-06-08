@@ -1,4 +1,3 @@
-/* eslint-disable filenames/match-exported */
 /**
  * @name MarkerClusterer for Google Maps V3
  * @version 1.0.0 [March 2019]

@@ -1,25 +1,43 @@
-/* eslint-disable filenames/match-regex */
 export function getOffsetOverride(
   containerElement: HTMLElement,
-  getPixelPositionOffset?: (offsetWidth: number, offsetHeight: number) => { x: number; y: number }
-): { x: number; y: number } | {} {
+  getPixelPositionOffset?: (
+    offsetWidth: number,
+    offsetHeight: number
+  ) => { x: number; y: number }
+): { x: number; y: number } | Record<string, unknown> {
   return typeof getPixelPositionOffset === 'function'
-    ? getPixelPositionOffset(containerElement.offsetWidth, containerElement.offsetHeight)
+    ? getPixelPositionOffset(
+        containerElement.offsetWidth,
+        containerElement.offsetHeight
+      )
     : {}
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const createLatLng = (inst: any, Type: any): any => new Type(inst.lat, inst.lng)
+function createLatLng(inst: any, Type: any): any {
+  return new Type(inst.lat, inst.lng)
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const createLatLngBounds = (inst: any, Type: any): any =>
-  new Type(
+function createLatLngBounds(inst: any, Type: any): any {
+  return new Type(
     new google.maps.LatLng(inst.ne.lat, inst.ne.lng),
     new google.maps.LatLng(inst.sw.lat, inst.sw.lng)
   )
+}
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const ensureOfType = (inst: any, type: any, factory: any): any => {
+function ensureOfType(
+  inst:
+    | google.maps.LatLngBounds
+    | google.maps.LatLngBoundsLiteral
+    | google.maps.LatLng
+    | google.maps.LatLngLiteral,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  type: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  factory: any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): any {
   return inst instanceof type ? inst : factory(inst, type)
 }
 
@@ -27,7 +45,7 @@ const getLayoutStylesByBounds = (
   mapCanvasProjection: google.maps.MapCanvasProjection,
   offset: { x: number; y: number },
   bounds: google.maps.LatLngBounds
-): { left: string; top: string; width?: string; height?: string } => {
+): React.CSSProperties => {
   const ne = mapCanvasProjection.fromLatLngToDivPixel(bounds.getNorthEast())
 
   const sw = mapCanvasProjection.fromLatLngToDivPixel(bounds.getSouthWest())
@@ -47,11 +65,11 @@ const getLayoutStylesByBounds = (
   }
 }
 
-const getLayoutStylesByPosition = (
+function getLayoutStylesByPosition(
   mapCanvasProjection: google.maps.MapCanvasProjection,
   offset: { x: number; y: number },
   position: google.maps.LatLng
-): { left: string; top: string } => {
+): React.CSSProperties {
   const point = mapCanvasProjection.fromLatLngToDivPixel(position)
 
   if (point) {
@@ -69,21 +87,27 @@ const getLayoutStylesByPosition = (
   }
 }
 
-export const getLayoutStyles = (
+export function getLayoutStyles(
   mapCanvasProjection: google.maps.MapCanvasProjection,
   offset: { x: number; y: number },
   bounds?: google.maps.LatLngBounds | google.maps.LatLngBoundsLiteral,
   position?: google.maps.LatLng | google.maps.LatLngLiteral
-): { left: string; top: string; width?: string; height?: string } => {
-  return bounds !== undefined
-    ? getLayoutStylesByBounds(
-        mapCanvasProjection,
-        offset,
-        ensureOfType(bounds, google.maps.LatLngBounds, createLatLngBounds)
-      )
-    : getLayoutStylesByPosition(
-        mapCanvasProjection,
-        offset,
-        ensureOfType(position, google.maps.LatLng, createLatLng)
-      )
+): React.CSSProperties | null {
+  if (bounds !== undefined) {
+    return getLayoutStylesByBounds(
+      mapCanvasProjection,
+      offset,
+      ensureOfType(bounds, google.maps.LatLngBounds, createLatLngBounds)
+    )
+  }
+
+  if (position !== undefined) {
+    return getLayoutStylesByPosition(
+      mapCanvasProjection,
+      offset,
+      ensureOfType(position, google.maps.LatLng, createLatLng)
+    )
+  }
+
+  return null
 }

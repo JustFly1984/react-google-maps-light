@@ -8,3 +8,7 @@ export function setKey(key: string): void {
 export function getKey(): string | null {
   return localDevKey || window.sessionStorage.getItem(KEY_NAME)
 }
+
+export function removeKey(): void {
+  window.sessionStorage.removeItem(KEY_NAME)
+}

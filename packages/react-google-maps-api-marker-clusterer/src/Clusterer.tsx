@@ -1,5 +1,4 @@
 /* global google */
-/* eslint-disable filenames/match-regex */
 import { Cluster } from './Cluster'
 
 import {
@@ -23,7 +22,7 @@ const CALCULATOR = function CALCULATOR(
   let dv: string | number = count
 
   while (dv !== 0) {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     dv = parseInt(dv, 10) / 10
 
@@ -142,13 +141,13 @@ export class Clusterer {
     this.setupStyles()
 
     this.addMarkers(optMarkers, true)
-    // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     this.setMap(map) // Note: this causes onAdd to be called
   }
 
-  onAdd() {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+  onAdd(): void {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     this.activeMap = this.getMap()
 
@@ -159,11 +158,10 @@ export class Clusterer {
     // Add the map event listeners
     this.listeners = [
       google.maps.event.addListener(
-        // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         this.getMap(),
         'zoom_changed',
-        // eslint-disable-next-line  @getify/proper-arrows/this, @getify/proper-arrows/name
         () => {
           this.resetViewport(false)
           // Workaround for this Google bug: when map is at level 0 and "-" of
@@ -172,10 +170,10 @@ export class Clusterer {
           // event is triggered so the cluster markers that have been removed
           // do not get redrawn. Same goes for a zoom in at maxZoom.
           if (
-            // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
             // @ts-ignore
             this.getMap().getZoom() === (this.get('minZoom') || 0) ||
-            // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
             // @ts-ignore
             this.getMap().getZoom() === this.get('maxZoom')
           ) {
@@ -184,11 +182,10 @@ export class Clusterer {
         }
       ),
       google.maps.event.addListener(
-        // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         this.getMap(),
         'idle',
-        // eslint-disable-next-line  @getify/proper-arrows/this, @getify/proper-arrows/name
         () => {
           this.redraw()
         }
@@ -196,8 +193,7 @@ export class Clusterer {
     ]
   }
 
-  // eslint-disable-next-line @getify/proper-arrows/this
-  onRemove() {
+  onRemove(): void {
     // Put all the managed markers back on the map:
     for (let i = 0; i < this.markers.length; i++) {
       if (this.markers[i].getMap() !== this.activeMap) {
@@ -224,10 +220,11 @@ export class Clusterer {
     this.ready = false
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  draw() {}
+  draw(): void {
+    return
+  }
 
-  setupStyles() {
+  setupStyles(): void {
     if (this.styles.length > 0) {
       return
     }
@@ -241,7 +238,7 @@ export class Clusterer {
     }
   }
 
-  fitMapToMarkers() {
+  fitMapToMarkers(): void {
     const markers = this.getMarkers()
 
     const bounds = new google.maps.LatLngBounds()
@@ -253,7 +250,7 @@ export class Clusterer {
       }
     }
 
-    // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     this.getMap().fitBounds(bounds)
   }
@@ -262,7 +259,7 @@ export class Clusterer {
     return this.gridSize
   }
 
-  setGridSize(gridSize: number) {
+  setGridSize(gridSize: number): void {
     this.gridSize = gridSize
   }
 
@@ -270,7 +267,7 @@ export class Clusterer {
     return this.minClusterSize
   }
 
-  setMinimumClusterSize(minimumClusterSize: number) {
+  setMinimumClusterSize(minimumClusterSize: number): void {
     this.minClusterSize = minimumClusterSize
   }
 
@@ -278,7 +275,7 @@ export class Clusterer {
     return this.maxZoom
   }
 
-  setMaxZoom(maxZoom: number) {
+  setMaxZoom(maxZoom: number): void {
     this.maxZoom = maxZoom
   }
 
@@ -286,7 +283,7 @@ export class Clusterer {
     return this.styles
   }
 
-  setStyles(styles: ClusterIconStyle[]) {
+  setStyles(styles: ClusterIconStyle[]): void {
     this.styles = styles
   }
 
@@ -294,7 +291,7 @@ export class Clusterer {
     return this.title
   }
 
-  setTitle(title: string) {
+  setTitle(title: string): void {
     this.title = title
   }
 
@@ -302,7 +299,7 @@ export class Clusterer {
     return this.zoomOnClick
   }
 
-  setZoomOnClick(zoomOnClick: boolean) {
+  setZoomOnClick(zoomOnClick: boolean): void {
     this.zoomOnClick = zoomOnClick
   }
 
@@ -310,7 +307,7 @@ export class Clusterer {
     return this.averageCenter
   }
 
-  setAverageCenter(averageCenter: boolean) {
+  setAverageCenter(averageCenter: boolean): void {
     this.averageCenter = averageCenter
   }
 
@@ -318,7 +315,7 @@ export class Clusterer {
     return this.ignoreHidden
   }
 
-  setIgnoreHidden(ignoreHidden: boolean) {
+  setIgnoreHidden(ignoreHidden: boolean): void {
     this.ignoreHidden = ignoreHidden
   }
 
@@ -326,7 +323,7 @@ export class Clusterer {
     return this.enableRetinaIcons
   }
 
-  setEnableRetinaIcons(enableRetinaIcons: boolean) {
+  setEnableRetinaIcons(enableRetinaIcons: boolean): void {
     this.enableRetinaIcons = enableRetinaIcons
   }
 
@@ -334,7 +331,7 @@ export class Clusterer {
     return this.imageExtension
   }
 
-  setImageExtension(imageExtension: string) {
+  setImageExtension(imageExtension: string): void {
     this.imageExtension = imageExtension
   }
 
@@ -342,7 +339,7 @@ export class Clusterer {
     return this.imagePath
   }
 
-  setImagePath(imagePath: string) {
+  setImagePath(imagePath: string): void {
     this.imagePath = imagePath
   }
 
@@ -350,7 +347,7 @@ export class Clusterer {
     return this.imageSizes
   }
 
-  setImageSizes(imageSizes: number[]) {
+  setImageSizes(imageSizes: number[]): void {
     this.imageSizes = imageSizes
   }
 
@@ -358,7 +355,7 @@ export class Clusterer {
     return this.calculator
   }
 
-  setCalculator(calculator: TCalculator) {
+  setCalculator(calculator: TCalculator): void {
     this.calculator = calculator
   }
 
@@ -366,7 +363,7 @@ export class Clusterer {
     return this.batchSizeIE
   }
 
-  setBatchSizeIE(batchSizeIE: number) {
+  setBatchSizeIE(batchSizeIE: number): void {
     this.batchSizeIE = batchSizeIE
   }
 
@@ -374,7 +371,7 @@ export class Clusterer {
     return this.clusterClass
   }
 
-  setClusterClass(clusterClass: string) {
+  setClusterClass(clusterClass: string): void {
     this.clusterClass = clusterClass
   }
 
@@ -394,7 +391,7 @@ export class Clusterer {
     return this.clusters.length
   }
 
-  addMarker(marker: MarkerExtended, optNoDraw: boolean) {
+  addMarker(marker: MarkerExtended, optNoDraw: boolean): void {
     this.pushMarkerTo(marker)
 
     if (!optNoDraw) {
@@ -402,8 +399,9 @@ export class Clusterer {
     }
   }
 
-  addMarkers(markers: MarkerExtended[], optNoDraw: boolean) {
+  addMarkers(markers: MarkerExtended[], optNoDraw: boolean): void {
     for (const key in markers) {
+      // eslint-disable-next-line no-prototype-builtins
       if (markers.hasOwnProperty(key)) {
         this.pushMarkerTo(markers[key])
       }
@@ -414,10 +412,9 @@ export class Clusterer {
     }
   }
 
-  pushMarkerTo(marker: MarkerExtended) {
+  pushMarkerTo(marker: MarkerExtended): void {
     // If the marker is draggable add a listener so we can update the clusters on the dragend:
     if (marker.getDraggable()) {
-      // eslint-disable-next-line @getify/proper-arrows/name, @getify/proper-arrows/this
       google.maps.event.addListener(marker, 'dragend', () => {
         if (this.ready) {
           marker.isAdded = false
@@ -483,13 +480,13 @@ export class Clusterer {
     return removed
   }
 
-  clearMarkers() {
+  clearMarkers(): void {
     this.resetViewport(true)
 
     this.markers = []
   }
 
-  repaint() {
+  repaint(): void {
     const oldClusters = this.clusters.slice()
 
     this.clusters = []
@@ -507,14 +504,19 @@ export class Clusterer {
     }, 0)
   }
 
-  getExtendedBounds(bounds: google.maps.LatLngBounds): google.maps.LatLngBounds {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+  getExtendedBounds(
+    bounds: google.maps.LatLngBounds
+  ): google.maps.LatLngBounds {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     const projection = this.getProjection()
     // Convert the points to pixels and the extend out by the grid size.
     const trPix = projection.fromLatLngToDivPixel(
       // Turn the bounds into latlng.
-      new google.maps.LatLng(bounds.getNorthEast().lat(), bounds.getNorthEast().lng())
+      new google.maps.LatLng(
+        bounds.getNorthEast().lat(),
+        bounds.getNorthEast().lng()
+      )
     )
 
     trPix.x += this.gridSize
@@ -522,7 +524,10 @@ export class Clusterer {
 
     const blPix = projection.fromLatLngToDivPixel(
       // Turn the bounds into latlng.
-      new google.maps.LatLng(bounds.getSouthWest().lat(), bounds.getSouthWest().lng())
+      new google.maps.LatLng(
+        bounds.getSouthWest().lat(),
+        bounds.getSouthWest().lng()
+      )
     )
 
     blPix.x -= this.gridSize
@@ -542,12 +547,12 @@ export class Clusterer {
     return bounds
   }
 
-  redraw() {
+  redraw(): void {
     // Redraws all the clusters.
     this.createClusters(0)
   }
 
-  resetViewport(optHide: boolean) {
+  resetViewport(optHide: boolean): void {
     // Remove all the clusters
     for (let i = 0; i < this.clusters.length; i++) {
       this.clusters[i].remove()
@@ -567,7 +572,10 @@ export class Clusterer {
     }
   }
 
-  distanceBetweenPoints(p1: google.maps.LatLng, p2: google.maps.LatLng): number {
+  distanceBetweenPoints(
+    p1: google.maps.LatLng,
+    p2: google.maps.LatLng
+  ): number {
     const R = 6371 // Radius of the Earth in km
 
     const dLat = ((p2.lat() - p1.lat()) * Math.PI) / 180
@@ -583,7 +591,10 @@ export class Clusterer {
     return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)))
   }
 
-  isMarkerInBounds(marker: MarkerExtended, bounds: google.maps.LatLngBounds): boolean {
+  isMarkerInBounds(
+    marker: MarkerExtended,
+    bounds: google.maps.LatLngBounds
+  ): boolean {
     const position = marker.getPosition()
 
     if (position) {
@@ -593,7 +604,7 @@ export class Clusterer {
     return false
   }
 
-  addToClosestCluster(marker: MarkerExtended) {
+  addToClosestCluster(marker: MarkerExtended): void {
     let cluster
 
     let distance = 40000 // Some large number
@@ -629,7 +640,7 @@ export class Clusterer {
     }
   }
 
-  createClusters(iFirst: number) {
+  createClusters(iFirst: number): void {
     if (!this.ready) {
       return
     }
@@ -657,25 +668,25 @@ export class Clusterer {
     //
     // See Comments 9 & 11 on Issue 3651 relating to this workaround for a Google Maps bug:
     const mapBounds =
-    // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-    // @ts-ignore
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
       this.getMap().getZoom() > 3
         ? new google.maps.LatLngBounds(
-          // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-          // @ts-ignore
-          this.getMap()
-            .getBounds()
-            .getSouthWest(),
-          // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-          // @ts-ignore
-          this.getMap()
-            .getBounds()
-            .getNorthEast()
-        )
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+            this.getMap()
+              .getBounds()
+              .getSouthWest(),
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+            this.getMap()
+              .getBounds()
+              .getNorthEast()
+          )
         : new google.maps.LatLngBounds(
-          new google.maps.LatLng(85.02070771743472, -178.48388434375),
-          new google.maps.LatLng(-85.08136444384544, 178.00048865625)
-        )
+            new google.maps.LatLng(85.02070771743472, -178.48388434375),
+            new google.maps.LatLng(-85.08136444384544, 178.00048865625)
+          )
 
     const bounds = this.getExtendedBounds(mapBounds)
 
@@ -692,13 +703,9 @@ export class Clusterer {
     }
 
     if (iLast < this.markers.length) {
-      this.timerRefStatic = window.setTimeout(
-        // eslint-disable-next-line @getify/proper-arrows/this, @getify/proper-arrows/name
-        () => {
-          this.createClusters(iLast)
-        },
-        0
-      )
+      this.timerRefStatic = window.setTimeout(() => {
+        this.createClusters(iLast)
+      }, 0)
     } else {
       this.timerRefStatic = null
 
@@ -709,7 +716,7 @@ export class Clusterer {
        * @param {Clusterer} mc The Clusterer whose markers are being clustered.
        * @event
        */
-      google.maps.event.trigger(this, 'clusteringend', this) 
+      google.maps.event.trigger(this, 'clusteringend', this)
 
       for (let i = 0; i < this.clusters.length; i++) {
         this.clusters[i].updateIcon()
@@ -717,16 +724,18 @@ export class Clusterer {
     }
   }
 
-  extend(obj1: any, obj2: any): any {
-    return function applyExtend(object: any) {
+  extend(obj1: unknown, obj2: unknown): unknown {
+    return function applyExtend(object: unknown) {
       // eslint-disable-next-line guard-for-in
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
       for (const property in object.prototype) {
-        // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         this.prototype[property] = object.prototype[property]
       }
 
-      // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
       return this
     }.apply(obj1, [obj2])

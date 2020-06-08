@@ -24,7 +24,7 @@ function LoadScriptNext({
   const { isLoaded, loadError } = useLoadScript(hookOptions)
 
   React.useEffect(
-    function handleOnLoad() {
+    function effect() {
       if (isLoaded && typeof onLoad === 'function') {
         onLoad()
       }
@@ -33,7 +33,7 @@ function LoadScriptNext({
   )
 
   React.useEffect(
-    function handleOnError() {
+    function effect() {
       if (loadError && typeof onError === 'function') {
         onError(loadError)
       }
@@ -42,7 +42,7 @@ function LoadScriptNext({
   )
 
   React.useEffect(
-    function handleOnUnmount() {
+    function effect() {
       return () => {
         if (onUnmount) {
           onUnmount()

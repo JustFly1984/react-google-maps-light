@@ -9,7 +9,10 @@ export type MarkerExtended = google.maps.Marker & {
   isAdded?: boolean
 }
 
-export type TCalculator = (markers: MarkerExtended[], num: number) => ClusterIconInfo
+export type TCalculator = (
+  markers: MarkerExtended[],
+  num: number
+) => ClusterIconInfo
 
 export interface ClustererOptions {
   gridSize?: number

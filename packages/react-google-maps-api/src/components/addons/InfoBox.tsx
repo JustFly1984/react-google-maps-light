@@ -1,14 +1,18 @@
 /* global google */
-/* eslint-disable filenames/match-exported */
 import * as React from 'react'
 import * as ReactDOM from 'react-dom'
-import invariant from 'invariant'
 import {
   InfoBox as GoogleMapsInfoBox,
   InfoBoxOptions as GoogleMapsInfoBoxOptions,
 } from '@react-google-maps/infobox'
-import { unregisterEvents, applyUpdatersToPropsAndRegisterEvents } from '../../utils/helper'
+import invariant from 'invariant'
+
 import MapContext from '../../map-context'
+import {
+  unregisterEvents,
+  applyUpdatersToPropsAndRegisterEvents,
+} from '../../utils/helper'
+import { usePrevious } from '../../utils/use-previous'
 
 const eventMap = {
   onCloseClick: 'closeclick',
@@ -19,7 +23,10 @@ const eventMap = {
 }
 
 const updaterMap = {
-  options(instance: GoogleMapsInfoBox, options: GoogleMapsInfoBoxOptions): void {
+  options(
+    instance: GoogleMapsInfoBox,
+    options: GoogleMapsInfoBoxOptions
+  ): void {
     instance.setOptions(options)
   },
   position(
@@ -44,11 +51,8 @@ type InfoBoxOptions = Omit<GoogleMapsInfoBoxOptions, 'position'> & {
   position?: google.maps.LatLng | google.maps.LatLngLiteral
 }
 
-interface InfoBoxState {
-  infoBox: GoogleMapsInfoBox | null
-}
-
 export interface InfoBoxProps {
+  children: React.ReactNode
   /** Can be any MVCObject that exposes a LatLng position property and optionally a Point anchorPoint property for calculating the pixelOffset. The anchorPoint is the offset from the anchor's position to the tip of the InfoBox. */
   anchor?: google.maps.MVCObject
   options?: InfoBoxOptions
@@ -72,104 +76,110 @@ export interface InfoBoxProps {
   onUnmount?: (infoBox: GoogleMapsInfoBox) => void
 }
 
-export class InfoBoxComponent extends React.PureComponent<InfoBoxProps, InfoBoxState> {
-  static contextType = MapContext
+function InfoBoxComponent(props: InfoBoxProps): JSX.Element {
+  const { children, options, anchor, onLoad, onUnmount } = props
+  const { position, ...infoBoxOptions }: InfoBoxOptions = options || {}
 
-  registeredEvents: google.maps.MapsEventListener[] = []
-  containerElement: HTMLElement | null = null
+  const map = React.useContext(MapContext)
+  const prevProps: InfoBoxProps = usePrevious<InfoBoxProps>(props)
+  const containerElementRef = React.useRef<HTMLDivElement | null>(null)
 
-  state: InfoBoxState = {
-    infoBox: null,
-  }
+  const [instance, setInstance] = React.useState<GoogleMapsInfoBox | null>(null)
 
-  open = (infoBox: GoogleMapsInfoBox, anchor?: google.maps.MVCObject): void => {
-    if (anchor) {
-      infoBox.open(this.context, anchor)
-    } else if (infoBox.getPosition()) {
-      infoBox.open(this.context)
-    } else {
-      invariant(false, 'You must provide either an anchor or a position prop for <InfoBox>.')
-    }
-  }
+  React.useEffect(
+    function effect() {
+      if (map !== null) {
+        if (instance === null) {
+          let positionLatLng: google.maps.LatLng | undefined
 
-  setInfoBoxCallback = (): void => {
-    const { anchor, onLoad } = this.props
-    const { infoBox } = this.state
+          if (position && !(position instanceof google.maps.LatLng)) {
+            positionLatLng = new google.maps.LatLng(position.lat, position.lng)
+          }
 
-    if (infoBox !== null && this.containerElement !== null) {
-      infoBox.setContent(this.containerElement)
-      this.open(infoBox, anchor)
+          containerElementRef.current = document.createElement('div')
 
-      if (onLoad) {
-        onLoad(infoBox)
-      }
-    }
-  }
+          const infoBox = new GoogleMapsInfoBox({
+            ...infoBoxOptions,
+            ...(positionLatLng ? { position: positionLatLng } : {}),
+          })
 
-  componentDidMount(): void {
-    const { options } = this.props
-    const { position, ...infoBoxOptions }: InfoBoxOptions = options || {}
+          setInstance(infoBox)
+        }
 
-    let positionLatLng: google.maps.LatLng | undefined
-    if (position && !(position instanceof google.maps.LatLng)) {
-      positionLatLng = new google.maps.LatLng(position.lat, position.lng)
-    }
+        if (instance !== null && containerElementRef.current !== null) {
+          instance.setContent(containerElementRef.current)
 
-    const infoBox = new GoogleMapsInfoBox({
-      ...infoBoxOptions,
-      ...(positionLatLng ? { position: positionLatLng } : {}),
-    })
+          if (anchor) {
+            instance.open(map, anchor)
+          } else if (instance.getPosition()) {
+            instance.open(map)
+          } else {
+            invariant(
+              false,
+              'You must provide either an anchor or a position prop for <InfoBox>.'
+            )
+          }
 
-    this.containerElement = document.createElement('div')
-
-    this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-      updaterMap,
-      eventMap,
-      prevProps: {},
-      nextProps: this.props,
-      instance: infoBox,
-    })
-
-    this.setState({ infoBox }, this.setInfoBoxCallback)
-  }
-
-  componentDidUpdate(prevProps: InfoBoxProps): void {
-    const { infoBox } = this.state
-
-    if (infoBox !== null) {
-      unregisterEvents(this.registeredEvents)
-
-      this.registeredEvents = applyUpdatersToPropsAndRegisterEvents({
-        updaterMap,
-        eventMap,
-        prevProps,
-        nextProps: this.props,
-        instance: infoBox,
-      })
-    }
-  }
-
-  componentWillUnmount(): void {
-    const { onUnmount } = this.props
-    const { infoBox } = this.state
-
-    if (infoBox !== null) {
-      if (onUnmount) {
-        onUnmount(infoBox)
+          if (onLoad) {
+            onLoad(instance)
+          }
+        }
       }
 
-      unregisterEvents(this.registeredEvents)
-      infoBox.close()
-    }
-  }
+      return function cleanup() {
+        if (instance !== null) {
+          if (onUnmount) {
+            onUnmount(instance)
+          }
 
-  render(): React.ReactPortal | null {
-    if (!this.containerElement) {
-      return null
-    }
+          instance.close()
+        }
+      }
+    },
+    [
+      instance,
+      map,
+      options,
+      onLoad,
+      onUnmount,
+      anchor,
+      containerElementRef,
+      infoBoxOptions,
+      position,
+    ]
+  )
 
-    return ReactDOM.createPortal(React.Children.only(this.props.children), this.containerElement)
+  React.useEffect(
+    function effect(): () => void {
+      const registeredEvents: google.maps.MapsEventListener[] = applyUpdatersToPropsAndRegisterEvents(
+        {
+          updaterMap,
+          eventMap,
+          prevProps,
+          nextProps: props,
+          instance,
+        }
+      )
+
+      return function cleanup(): void {
+        unregisterEvents(registeredEvents)
+      }
+    },
+    [props, instance, prevProps]
+  )
+
+  if (containerElementRef.current === null) {
+    return <></>
+  } else {
+    return (
+      <>
+        {ReactDOM.createPortal(
+          React.Children.only(children),
+          containerElementRef.current
+        )}
+      </>
+    )
   }
 }
 
-export default InfoBoxComponent
+export default React.memo(InfoBoxComponent)
