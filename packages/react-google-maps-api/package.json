@@ -86,6 +86,7 @@
   "dependencies": {
     "@react-google-maps/infobox": "2.0.0-alpha",
     "@react-google-maps/marker-clusterer": "2.0.0-alpha",
+    "markerwithlabel": "^2.0.2",
     "acorn": "7.2.0",
     "acorn-jsx": "5.2.0",
     "invariant": "2.2.4"

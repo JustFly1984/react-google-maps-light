@@ -1,12 +1,13 @@
 {
   "include": ["src/**/*"],
-  "exclude": ["node_modules"],
+  "exclude": ["node_modules", "types"],
   "compilerOptions": {
     "module": "esnext",
     "moduleResolution": "node",
     "target": "es5",
     "jsx": "react",
     "lib": ["dom", "es2017"],
+    "typeRoots": ["node_modules/@types", "types"],
     "rootDir": "src",
     "strict": true,
     "allowJs": false,

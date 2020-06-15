@@ -10,8 +10,9 @@ import { usePrevious } from '../../utils/use-previous'
 import { Clusterer } from '@react-google-maps/marker-clusterer'
 
 import { HasMarkerAnchor } from '../../types'
+import MarkerOptions = google.maps.MarkerOptions
 
-const eventMap = {
+export const eventMap = {
   onAnimationChanged: 'animation_changed',
   onClick: 'click',
   onClickableChanged: 'clickable_changed',
@@ -35,7 +36,7 @@ const eventMap = {
   onZindexChanged: 'zindex_changed',
 }
 
-const updaterMap = {
+export const updaterMap = {
   animation(
     instance: google.maps.Marker,
     animation: google.maps.Animation
@@ -116,6 +117,13 @@ export interface MarkerProps {
   // required
   /** Marker position. */
   position: google.maps.LatLng | google.maps.LatLngLiteral
+  /** customizable marker factory for extensions */
+  markerFactory?: (options: MarkerOptions) => google.maps.Marker
+  /** customizable updaters for extensions */
+  defaultUpdaterMap?: Record<
+    string,
+    (instance: google.maps.Marker, ...options: any[]) => void
+  >
   /** Image map region definition used for drag/click. */
   shape?: google.maps.MarkerShape
   /** Rollover text */
@@ -130,7 +138,7 @@ export interface MarkerProps {
   noClustererRedraw?: boolean
   /** This event is fired when the marker icon was clicked. */
   onClick?: (e: google.maps.MouseEvent) => void
-  /** This event is fired when the marker's clickable property changes. */
+  /** This event is fired when the marker's clickable  property changes. */
   onClickableChanged?: () => void
   /** This event is fired when the marker's cursor property changes. */
   onCursorChanged?: () => void
@@ -176,6 +184,8 @@ export interface MarkerProps {
   onUnmount?: (marker: google.maps.Marker) => void
 }
 
+const createMarker = (options: MarkerOptions) => new google.maps.Marker(options)
+
 function Marker(props: MarkerProps): JSX.Element {
   const {
     children,
@@ -185,6 +195,8 @@ function Marker(props: MarkerProps): JSX.Element {
     noClustererRedraw,
     onLoad,
     onUnmount,
+    defaultUpdaterMap = updaterMap,
+    markerFactory = createMarker,
   } = props
   const map = React.useContext(MapContext)
   const prevProps: MarkerProps = usePrevious<MarkerProps>(props)
@@ -197,7 +209,7 @@ function Marker(props: MarkerProps): JSX.Element {
     function effect() {
       if (map !== null) {
         if (instance === null) {
-          const marker = new google.maps.Marker({
+          const marker = markerFactory({
             ...(options || {}),
             ...(clusterer ? {} : { map }),
             position,
@@ -244,6 +256,7 @@ function Marker(props: MarkerProps): JSX.Element {
       position,
       onLoad,
       onUnmount,
+      markerFactory,
     ]
   )
 
@@ -251,7 +264,7 @@ function Marker(props: MarkerProps): JSX.Element {
     function effect(): () => void {
       const registeredEvents: google.maps.MapsEventListener[] = applyUpdatersToPropsAndRegisterEvents(
         {
-          updaterMap,
+          updaterMap: defaultUpdaterMap,
           eventMap,
           prevProps,
           nextProps: props,
@@ -263,7 +276,7 @@ function Marker(props: MarkerProps): JSX.Element {
         unregisterEvents(registeredEvents)
       }
     },
-    [props, instance, prevProps]
+    [props, instance, prevProps, defaultUpdaterMap]
   )
 
   if (children) {
