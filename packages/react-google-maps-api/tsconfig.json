@@ -1,6 +1,6 @@
 {
   "include": ["src/**/*"],
-  "exclude": ["node_modules"],
+  "exclude": ["node_modules", "src/GoogleMapNext.tsx"],
   "compilerOptions": {
     "module": "esnext",
     "moduleResolution": "node",
