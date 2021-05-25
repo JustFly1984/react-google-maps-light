@@ -79,7 +79,7 @@
     "babel-plugin-transform-react-remove-prop-types": "0.4.24",
     "eslint": "7.26.0",
     "eslint-config-prettier": "8.3.0",
-    "eslint-config-standard": "16.0.2",
+    "eslint-config-standard": "16.0.3",
     "eslint-config-standard-react": "11.0.1",
     "eslint-import-resolver-webpack": "0.13.1",
     "eslint-loader": "4.0.2",
