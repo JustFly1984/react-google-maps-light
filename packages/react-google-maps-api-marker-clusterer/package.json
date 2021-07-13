@@ -55,7 +55,7 @@
     "@types/googlemaps": "3.43.3",
     "@types/react-dom": "17.0.5",
     "@typescript-eslint/eslint-plugin": "4.24.0",
-    "@typescript-eslint/parser": "4.24.0",
+    "@typescript-eslint/parser": "4.28.3",
     "awesome-typescript-loader": "5.2.1",
     "eslint": "7.26.0",
     "eslint-config-standard": "16.0.2",
