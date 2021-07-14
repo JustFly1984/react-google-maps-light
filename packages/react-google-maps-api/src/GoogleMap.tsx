@@ -104,6 +104,10 @@ export interface GoogleMapProps {
   onMouseOut?: (e: google.maps.MapMouseEvent) => void
   /** This event is fired when the user's mouse enters the map container. */
   onMouseOver?: (e: google.maps.MapMouseEvent) => void
+  /** This event is fired when the DOM mousedown event is fired on the map container. */
+  onMouseDown?: (e: google.maps.MapMouseEvent) => void
+  /** This event is fired when the DOM mouseup event is fired on the map container. */
+  onMouseUp?: (e: google.maps.MapMouseEvent) => void
   /** This event is fired when the DOM contextmenu event is fired on the map container. */
   onRightClick?: (e: google.maps.MapMouseEvent) => void
   /** This event is fired when the visible tiles have finished loading. */
