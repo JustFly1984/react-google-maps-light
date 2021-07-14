@@ -43,6 +43,9 @@ const updaterMap = {
   heading(map: google.maps.Map, heading: number): void {
     map.setHeading(heading)
   },
+  mapId(map: google.maps.Map, mapId: string): void {
+    map.setMapId(mapId)
+  },
   mapTypeId(map: google.maps.Map, mapTypeId: string): void {
     map.setMapTypeId(mapTypeId)
   },
@@ -78,6 +81,8 @@ export interface GoogleMapProps {
   clickableIcons?: boolean
   /** The heading for aerial imagery in degrees measured clockwise from cardinal direction North. Headings are snapped to the nearest available angle for which imagery is available. */
   heading?: number
+  /** The unique identifier that represents a single instance of a Google Map. You can create Map IDs and update a style associated with a Map ID at any time in the Google Cloud Console Maps Management page without changing embedded JSON styling in your application code. */
+  mapId?: string
   /** The initial Map mapTypeId. Defaults to ROADMAP. */
   mapTypeId?: string
   /** A StreetViewPanorama to display when the Street View pegman is dropped on the map. If no panorama is specified, a default StreetViewPanorama will be displayed in the map's div when the pegman is dropped. */
