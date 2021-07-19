@@ -58,7 +58,7 @@
     "react": "17.0.1",
     "react-dom": "17.0.1",
     "rimraf": "3.0.2",
-    "webpack": "5.17.0"
+    "webpack": "5.45.1"
   },
   "gitHead": "80167ddcc3d8e356dbf0b0c3a6292c6a3a989f83"
 }
