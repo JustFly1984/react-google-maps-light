@@ -30,7 +30,7 @@
     "@storybook/react": "6.1.15",
     "babel-eslint": "10.1.0",
     "babel-loader": "8.2.2",
-    "eslint": "7.18.0",
+    "eslint": "7.31.0",
     "eslint-config-standard": "16.0.2",
     "eslint-config-standard-react": "11.0.1",
     "eslint-import-resolver-webpack": "0.13.0",
